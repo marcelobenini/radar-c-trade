@@ -1,0 +1,6 @@
+{
+  "name": "Radar Comercial",
+  "description": "Plataforma de Inteligência Comercial desenvolvida para a equipe da CTrade.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

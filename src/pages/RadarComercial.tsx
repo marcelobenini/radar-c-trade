@@ -8,9 +8,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import PageContainer from '../components/shared/PageContainer';
 import PageHeader from '../components/shared/PageHeader';
 import Breadcrumb from '../components/ui/Breadcrumb';
+import Button from '../components/ui/Button';
 import GlobalFilters, { matchesScoreRange, INITIAL_FILTERS } from '../components/shared/GlobalFilters';
 import ScoreIndicator from '../components/ui/Score';
+import FitComercial from '../components/ui/FitComercial';
 import { syncPlatformData } from '../utils/platformSync';
+import { EmptyState } from '../components/ui/Feedback';
+import { Eraser } from 'lucide-react';
 import { 
   Target, 
   TrendingUp, 
@@ -133,6 +137,7 @@ export default function RadarComercial() {
   // --- SUB-FILTERS & SEARCH (Local to Portfolio Section) ---
   const [portfolioSearch, setPortfolioSearch] = useState('');
   const [priorityFilter, setPriorityFilter] = useState<string>('All');
+  const [radarSortOption, setRadarSortOption] = useState<'priority' | 'fitDesc' | 'fitAsc'>('priority');
 
   // --- EXPORT RESUMO MODAL STATES ---
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -337,20 +342,27 @@ export default function RadarComercial() {
 
   // --- AUTOMATIC ORDERING BY PRIORITY & SCORES ---
   const sortedApprovedClients = useMemo(() => {
-    return [...filteredApprovedClients].sort((a, b) => {
+    const list = [...filteredApprovedClients];
+    if (radarSortOption === 'fitDesc') {
+      return list.sort((a, b) => b.scoreFit - a.scoreFit);
+    }
+    if (radarSortOption === 'fitAsc') {
+      return list.sort((a, b) => a.scoreFit - b.scoreFit);
+    }
+    return list.sort((a, b) => {
       // Map Priority order weight
       const weight = { 'Alta': 3, 'Média': 2, 'Baixa': 1 };
-      const weightDiff = weight[b.priority] - weight[a.priority];
+      const weightDiff = (weight[b.priority as 'Alta' | 'Média' | 'Baixa'] || 0) - (weight[a.priority as 'Alta' | 'Média' | 'Baixa'] || 0);
       if (weightDiff !== 0) return weightDiff;
       // Secondary sort: Score Fit descending
       return b.scoreFit - a.scoreFit;
     });
-  }, [filteredApprovedClients]);
+  }, [filteredApprovedClients, radarSortOption]);
 
   // Reset pagination on filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [sessionFilters, portfolioSearch, priorityFilter]);
+  }, [sessionFilters, portfolioSearch, priorityFilter, radarSortOption]);
 
   // Pagination slicing
   const paginatedClients = useMemo(() => {
@@ -750,6 +762,17 @@ ESTRATÉGIA COMERCIAL RECOMENDADA:
               <option value="Baixa">Baixa Prioridade</option>
             </select>
 
+            {/* Ordenação por Fit */}
+            <select
+              value={radarSortOption}
+              onChange={(e) => setRadarSortOption(e.target.value as any)}
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 focus:outline-hidden cursor-pointer hover:bg-slate-50 transition-colors"
+            >
+              <option value="priority">Ordenar por Prioridade</option>
+              <option value="fitDesc">Fit Comercial (Maior Fit ↓)</option>
+              <option value="fitAsc">Fit Comercial (Menor Fit ↑)</option>
+            </select>
+
             {/* Pagination Size */}
             <select
               value={itemsPerPage}
@@ -769,14 +792,27 @@ ESTRATÉGIA COMERCIAL RECOMENDADA:
 
         {/* Empty State */}
         {sortedApprovedClients.length === 0 && (
-          <div className="py-12 text-center text-slate-500">
-            <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 mx-auto mb-3">
-              <Filter className="h-5 w-5 text-slate-300" />
-            </div>
-            <h4 className="text-sm font-bold text-slate-700">Nenhum cliente homologado atende aos critérios</h4>
-            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-              Verifique os filtros selecionados acima no Sistema Global de Filtros ou modifique a sua palavra-chave.
-            </p>
+          <div className="py-6">
+            <EmptyState
+              title="Nenhum cliente homologado localizado."
+              description="Nenhum estabelecimento corresponde aos filtros e pesquisa selecionados no painel do Radar."
+              action={
+                <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSessionFilters(INITIAL_FILTERS);
+                      setPortfolioSearch('');
+                      setPriorityFilter('All');
+                    }}
+                    leftIcon={<Eraser className="h-4 w-4" />}
+                  >
+                    Limpar Filtros
+                  </Button>
+                </div>
+              }
+            />
           </div>
         )}
 
@@ -824,12 +860,14 @@ ESTRATÉGIA COMERCIAL RECOMENDADA:
                       </div>
                     </div>
 
-                    {/* Circular Score representation */}
+                    {/* Fit Comercial representation */}
                     <div className="text-right shrink-0">
-                      <div className="inline-flex items-center justify-center h-11 w-11 rounded-full bg-blue-50 border border-blue-100 text-blue-900 font-extrabold text-sm shadow-2xs">
-                        {client.scoreFit}
-                      </div>
-                      <div className="text-[9px] text-slate-400 font-bold uppercase mt-1">Fit Score</div>
+                      <FitComercial 
+                        score={client.scoreFit} 
+                        variant="compact" 
+                        history={client.fitHistory}
+                        lastUpdated={client.lastAnalysis || client.dateUpdated}
+                      />
                     </div>
                   </div>
 

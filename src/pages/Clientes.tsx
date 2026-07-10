@@ -14,6 +14,7 @@ import { Badge, EmptyState, Toast, Tooltip, ProgressBar } from '../components/ui
 import { Modal, ContextMenu } from '../components/ui/Interactive';
 import DataTable, { Column } from '../components/ui/Table';
 import ScoreIndicator from '../components/ui/Score';
+import FitComercial, { FitHistoryItem } from '../components/ui/FitComercial';
 import Breadcrumb, { BreadcrumbItem } from '../components/ui/Breadcrumb';
 import { REAL_CLIENTS, REAL_PRODUCTS, REAL_OPPORTUNITIES } from '../data/realData';
 import GlobalFilters, { matchesScoreRange } from '../components/shared/GlobalFilters';
@@ -124,7 +125,7 @@ export interface ClientHistoryEvent {
   tipo?: 'cadastro' | 'cardapio' | 'analise' | 'curadoria' | 'atualizacao' | 'outro';
 }
 
-// Client schema interface
+// Client schema interface (internally treated as Conta / Account model)
 export interface Client {
   id: number;
   name: string; // Razão Social (Razão Social when exists)
@@ -162,7 +163,16 @@ export interface Client {
   dateCreated: string; // Data de Cadastro
   dateUpdated: string; // Última Atualização
   historicoCompleto?: ClientHistoryEvent[];
+  fitHistory?: FitHistoryItem[];
+
+  // --- MODELO DE CONTA (ACCOUNT MODEL) ---
+  id_radar?: string; // ID Radar (Auto-generated, immutable)
+  id_erp?: string; // ID ERP (Proveniente do ERP, mutable)
+  statusConta?: 'Prospect Radar' | 'Cliente Convertido' | 'Cliente Base'; // Status da Conta (Ciclo de Vida)
 }
+
+export type Conta = Client; // Name alias to preserve internal architecture as Conta
+export const ERP_ID_FIELD_NAME = 'id_erp'; // Configurable constant for potential ERP field renames
 
 export function isValidPhone(phone: string | null | undefined): boolean {
   if (!phone) return false;
@@ -226,15 +236,50 @@ export default function Clientes() {
     const regionalId = rc.state === 'RJ' ? 'reg-sudeste' : 'reg-sul';
     const rcaId = rc.state === 'RJ' ? 'rca-marcelo' : 'rca-amanda';
     const rcaName = rc.state === 'RJ' ? 'RCA Marcelo Baquero' : 'RCA Amanda Souza';
-    const dateCreated = rc.id === 1 ? '2026-01-15' : '2026-02-10';
-    const dateUpdated = rc.id === 1 ? '2026-07-07' : '2026-07-08';
     
+    let dateCreated = '2026-02-10';
+    if (rc.id === 1) dateCreated = '2026-01-15';
+    if (rc.id === 3) dateCreated = '2026-07-08';
+
+    let dateUpdated = '2026-07-08';
+    if (rc.id === 1) dateUpdated = '2026-07-07';
+    if (rc.id === 3) dateUpdated = '2026-07-08';
+    
+    let fallbackCnpj = '45.890.123/0001-44';
+    if (rc.id === 1) fallbackCnpj = '12.345.678/0001-90';
+    if (rc.id === 2) fallbackCnpj = '98.765.432/0001-21';
+
+    let fallbackLinkedin = '';
+    if (rc.id === 1) fallbackLinkedin = 'https://www.linkedin.com/in/eliaschramm';
+    if (rc.id === 3) fallbackLinkedin = 'https://www.linkedin.com/in/rogeriofasano';
+
+    let defaultHistory: ClientHistoryEvent[] = [
+      { id: 'h-e1', data: '2026-02-10 10:30', usuario: 'Sistema Radar', acao: 'Cliente cadastrado com sucesso na base comercial.', tipo: 'cadastro' },
+      { id: 'h-e2', data: '2026-07-07 10:30', usuario: 'Marcelo Baquero', acao: 'Cardápio recebido e submetido para homologação.', tipo: 'cardapio' },
+      { id: 'h-e3', data: '2026-07-07 10:35', usuario: 'Claude AI (Processamento)', acao: 'Mapeamento automatizado concluído com score de fit de 96 pts.', tipo: 'analise' },
+      { id: 'h-e4', data: '2026-07-07 15:00', usuario: 'Marcelo Baquero', acao: 'Curadoria de SKUs realizada e homologada no painel de inteligência.', tipo: 'curadoria' }
+    ];
+
+    if (rc.id === 1) {
+      defaultHistory = [
+        { id: 'h-1', data: '2026-01-15 09:00', usuario: 'Sistema Radar', acao: 'Cliente cadastrado com sucesso na base comercial.', tipo: 'cadastro' },
+        { id: 'h-2', data: '2026-07-07 10:15', usuario: 'Marcelo Baquero', acao: 'Cardápio recebido e submetido para homologação.', tipo: 'cardapio' },
+        { id: 'h-3', data: '2026-07-07 10:20', usuario: 'Claude AI (Processamento)', acao: 'Mapeamento automatizado concluído com score de fit de 95 pts.', tipo: 'analise' },
+        { id: 'h-4', data: '2026-07-07 14:00', usuario: 'Marcelo Baquero', acao: 'Curadoria de SKUs realizada e homologada no painel de inteligência.', tipo: 'curadoria' }
+      ];
+    } else if (rc.id === 3) {
+      defaultHistory = [
+        { id: 'h-3-1', data: '2026-07-08 09:30', usuario: 'Sistema Radar', acao: 'Estabelecimento identificado pelo Radar como prospect comercial em potencial.', tipo: 'cadastro' },
+        { id: 'h-3-2', data: '2026-07-08 11:15', usuario: 'Claude AI (Processamento)', acao: 'Identificação de oportunidades no cardápio de Gero concluída. ID Radar gerado.', tipo: 'analise' }
+      ];
+    }
+
     return {
       id: rc.id,
       name: rc.name,
       fantasyName: rc.fantasyName,
       razaoSocial: rc.name,
-      cnpj: rc.id === 1 ? '12.345.678/0001-90' : '98.765.432/0001-21',
+      cnpj: fallbackCnpj,
       city: rc.city,
       state: rc.state,
       segment: rc.segment,
@@ -245,7 +290,7 @@ export default function Clientes() {
       email: rc.email,
       responsible: rc.responsible,
       responsibleRole: rc.responsibleRole,
-      linkedin: rc.id === 1 ? 'https://www.linkedin.com/in/eliaschramm' : '',
+      linkedin: fallbackLinkedin,
       observations: rc.observations,
       score: rc.score,
       potential: rc.potential,
@@ -257,17 +302,10 @@ export default function Clientes() {
       responsibleCommercial: rcaName,
       dateCreated,
       dateUpdated,
-      historicoCompleto: rc.id === 1 ? [
-        { id: 'h-1', data: '2026-01-15 09:00', usuario: 'Sistema Radar', acao: 'Cliente cadastrado com sucesso na base comercial.', tipo: 'cadastro' },
-        { id: 'h-2', data: '2026-07-07 10:15', usuario: 'Marcelo Baquero', acao: 'Cardápio recebido e submetido para homologação.', tipo: 'cardapio' },
-        { id: 'h-3', data: '2026-07-07 10:20', usuario: 'Claude AI (Processamento)', acao: 'Mapeamento automatizado concluído com score de fit de 95 pts.', tipo: 'analise' },
-        { id: 'h-4', data: '2026-07-07 14:00', usuario: 'Marcelo Baquero', acao: 'Curadoria de SKUs realizada e homologada no painel de inteligência.', tipo: 'curadoria' }
-      ] : [
-        { id: 'h-e1', data: '2026-02-10 10:30', usuario: 'Sistema Radar', acao: 'Cliente cadastrado com sucesso na base comercial.', tipo: 'cadastro' },
-        { id: 'h-e2', data: '2026-07-07 10:30', usuario: 'Marcelo Baquero', acao: 'Cardápio recebido e submetido para homologação.', tipo: 'cardapio' },
-        { id: 'h-e3', data: '2026-07-07 10:35', usuario: 'Claude AI (Processamento)', acao: 'Mapeamento automatizado concluído com score de fit de 96 pts.', tipo: 'analise' },
-        { id: 'h-e4', data: '2026-07-07 15:00', usuario: 'Marcelo Baquero', acao: 'Curadoria de SKUs realizada e homologada no painel de inteligência.', tipo: 'curadoria' }
-      ]
+      historicoCompleto: defaultHistory,
+      id_radar: rc.id_radar,
+      id_erp: rc.id_erp,
+      statusConta: rc.statusConta || 'Prospect Radar'
     };
   });
 
@@ -303,15 +341,35 @@ export default function Clientes() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const targetId = localStorage.getItem('ctrade_selected_client_id');
-    if (targetId) {
-      const parsedId = parseInt(targetId, 10);
-      if (!isNaN(parsedId)) {
-        setSelectedClientId(parsedId);
-        setIsModalOpen(true);
-        localStorage.removeItem('ctrade_selected_client_id');
+    const checkTargetId = () => {
+      const targetId = localStorage.getItem('ctrade_selected_client_id');
+      if (targetId) {
+        const parsedId = parseInt(targetId, 10);
+        if (!isNaN(parsedId)) {
+          setSelectedClientId(parsedId);
+          setIsModalOpen(true);
+          localStorage.removeItem('ctrade_selected_client_id');
+        }
       }
-    }
+    };
+    checkTargetId();
+
+    const handleOpenDossier = (e: Event) => {
+      const customEvent = e as CustomEvent<{ clientId: number }>;
+      if (customEvent.detail && customEvent.detail.clientId) {
+        setSelectedClientId(customEvent.detail.clientId);
+        setIsModalOpen(true);
+      }
+    };
+    window.addEventListener('open-client-dossier', handleOpenDossier);
+    window.addEventListener('storage', checkTargetId);
+    window.addEventListener('focus', checkTargetId);
+
+    return () => {
+      window.removeEventListener('open-client-dossier', handleOpenDossier);
+      window.removeEventListener('storage', checkTargetId);
+      window.removeEventListener('focus', checkTargetId);
+    };
   }, []);
   
   // Rejection reason management states
@@ -1202,28 +1260,11 @@ export default function Clientes() {
       key: 'score',
       header: 'Score de Fit',
       sortable: true,
-      render: (row) => {
-        const val = row.score;
-        let colorText = 'text-rose-600 bg-rose-50 border-rose-100';
-        if (val >= 71) colorText = 'text-emerald-700 bg-emerald-50 border-emerald-100';
-        else if (val >= 41) colorText = 'text-amber-700 bg-amber-50 border-amber-100';
-
-        return (
-          <div className="flex flex-col gap-1 w-24">
-            <div className="flex items-center justify-between text-[10px] font-black">
-              <span className={`px-1.5 py-0.5 rounded border ${colorText}`}>
-                {val} pts
-              </span>
-            </div>
-            <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full ${val >= 71 ? 'bg-emerald-500' : val >= 41 ? 'bg-amber-500' : 'bg-rose-500'}`}
-                style={{ width: `${val}%` }}
-              />
-            </div>
-          </div>
-        );
-      }
+      render: (row) => (
+        <div className="w-32 py-1">
+          <FitComercial score={row.score} variant="bar" history={row.fitHistory} />
+        </div>
+      )
     },
     {
       key: 'potential',
@@ -1398,8 +1439,13 @@ export default function Clientes() {
             </div>
 
             {/* Score circle alignment inside header */}
-            <div className="flex items-center gap-4 shrink-0 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
-              <ScoreIndicator score={selectedClient.score} title="Score de Fit Radar" size="sm" />
+            <div className="flex items-center shrink-0 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 max-w-sm w-full md:w-80">
+              <FitComercial 
+                score={selectedClient.score} 
+                variant="card" 
+                history={selectedClient.fitHistory}
+                lastUpdated={selectedClient.lastAnalysis || selectedClient.dateUpdated}
+              />
             </div>
           </div>
 
@@ -1826,10 +1872,10 @@ export default function Clientes() {
                                 
                                 {/* Product cards */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {items.map((it: any) => {
+                                  {items.map((it: any, itIdx: number) => {
                                     const isNotInCatalog = it.notInCatalog;
                                     return (
-                                      <div key={it.id} className="bg-slate-50/50 hover:bg-slate-100/50 p-2.5 rounded-lg border border-slate-100 transition-colors flex items-start justify-between gap-2">
+                                      <div key={`${it.id || 'it'}-${itIdx}`} className="bg-slate-50/50 hover:bg-slate-100/50 p-2.5 rounded-lg border border-slate-100 transition-colors flex items-start justify-between gap-2">
                                         <div className="space-y-0.5 truncate">
                                           <span className="text-xs font-bold text-slate-800 truncate block">
                                             {it.productName || it.nomeNoCardapio}
@@ -2288,12 +2334,17 @@ export default function Clientes() {
           {/* Conditional layout: Table vs. Cards List */}
           {filteredClients.length === 0 ? (
             <EmptyState
-              title="Nenhum cliente encontrado"
-              description="Nenhum estabelecimento corresponde aos filtros e pesquisa selecionados. Tente ajustar os parâmetros."
+              title="Nenhum cliente encontrado."
+              description="Nenhum estabelecimento corresponde aos filtros e pesquisa selecionados. Ajuste os filtros ou crie um novo registro."
               action={
-                <Button variant="outline" size="sm" onClick={handleClearFilters} leftIcon={<Eraser className="h-4 w-4" />}>
-                  Limpar Todos os Filtros
-                </Button>
+                <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                  <Button variant="outline" size="sm" onClick={handleClearFilters} leftIcon={<Eraser className="h-4 w-4" />}>
+                    Limpar Filtros
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={() => setIsModalOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                    Cadastrar Cliente
+                  </Button>
+                </div>
               }
             />
           ) : (
@@ -2631,25 +2682,36 @@ export default function Clientes() {
                     onChange={(e) => setEditCategory(e.target.value)}
                   />
 
-                  <Select
-                    label="Potencial Comercial *"
-                    options={[
-                      { value: 'Muito Alto', label: 'Muito Alto' },
-                      { value: 'Alto', label: 'Alto' },
-                      { value: 'Médio', label: 'Médio' },
-                      { value: 'Baixo', label: 'Baixo' },
-                    ]}
-                    value={editPotential}
-                    onChange={(e) => setEditPotential(e.target.value as any)}
-                  />
+                  <div className="bg-slate-50 border border-slate-100 p-3 rounded-lg space-y-3">
+                    <div>
+                      <Select
+                        label="Potencial Comercial (Calculado)"
+                        options={[
+                          { value: 'Muito Alto', label: 'Muito Alto' },
+                          { value: 'Alto', label: 'Alto' },
+                          { value: 'Médio', label: 'Médio' },
+                          { value: 'Baixo', label: 'Baixo' },
+                        ]}
+                        value={editPotential}
+                        onChange={() => {}}
+                        disabled
+                      />
+                    </div>
 
-                  <Input
-                    label="Score de Adequação Comercial (0-100) *"
-                    type="number"
-                    placeholder="70"
-                    value={editScore.toString()}
-                    onChange={(e) => setEditScore(Number(e.target.value))}
-                  />
+                    <div>
+                      <Input
+                        label="Score de Adequação Comercial (Calculado)"
+                        type="number"
+                        placeholder="70"
+                        value={editScore.toString()}
+                        onChange={() => {}}
+                        disabled
+                      />
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-bold block leading-normal">
+                      ℹ️ O Fit Comercial e Potencial são calculados dinamicamente com base em cardápios e SKUs homologados.
+                    </span>
+                  </div>
 
                   <Input
                     label="Instagram"

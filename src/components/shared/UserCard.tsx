@@ -17,10 +17,11 @@ export interface UserDetail {
   department: string;
   position: string; // Cargo
   team: string;
-  status: 'Ativo' | 'Inativo' | 'Pendente';
+  status: 'Ativo' | 'Inativo' | 'Bloqueado' | 'Suspenso' | 'Convite Pendente';
   lastAccess: string;
   observations?: string;
   creationDate: string;
+  createdBy?: string;
 }
 
 interface UserCardProps {
@@ -46,11 +47,25 @@ export default function UserCard({ user, onEdit, onSelect }: UserCardProps) {
             Inativo
           </span>
         );
-      case 'Pendente':
-      default:
+      case 'Bloqueado':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200/50">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+            Bloqueado
+          </span>
+        );
+      case 'Suspenso':
         return (
           <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/50">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            Suspenso
+          </span>
+        );
+      case 'Convite Pendente':
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/50">
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
             Pendente
           </span>
         );

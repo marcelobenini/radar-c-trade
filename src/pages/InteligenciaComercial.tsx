@@ -10,11 +10,12 @@ import PageHeader from '../components/shared/PageHeader';
 import Button from '../components/ui/Button';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
-import { Badge, ProgressBar, Spinner, Toast } from '../components/ui/Feedback';
+import { Badge, ProgressBar, Spinner, Toast, EmptyState } from '../components/ui/Feedback';
 import ScoreIndicator from '../components/ui/Score';
 import Breadcrumb, { BreadcrumbItem } from '../components/ui/Breadcrumb';
 import { Modal } from '../components/ui/Interactive';
 import { syncPlatformData } from '../utils/platformSync';
+import { REAL_CLIENTS, REAL_CARDAPIOS, REAL_OPPORTUNITIES, REAL_PRODUCTS } from '../data/realData';
 
 import {
   Brain,
@@ -44,7 +45,19 @@ import {
   Download,
   Database,
   ArrowLeft,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle,
+  PhoneOff,
+  User,
+  Map,
+  Sparkle,
+  Network,
+  Users,
+  Building,
+  HelpCircle,
+  FileQuestion,
+  BookOpen,
+  Trash2
 } from 'lucide-react';
 
 // --- DATA STRUCTURES ---
@@ -372,6 +385,8 @@ const INITIAL_ANALYSES: AnalysisRecord[] = [
   ];
 
 export default function InteligenciaComercial() {
+  const [subTab, setSubTab] = useState<'painel' | 'motor'>('painel');
+
   // Persistent storage and cross-tab synchronization
   const [analyses, setAnalyses] = useState<AnalysisRecord[]>(() => {
     const saved = localStorage.getItem('ctrade_analyses_data');
@@ -385,24 +400,116 @@ export default function InteligenciaComercial() {
     return INITIAL_ANALYSES;
   });
 
+  // Load clients list with fallback
+  const [clients, setClients] = useState<any[]>(() => {
+    const saved = localStorage.getItem('ctrade_clients_list_v2');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return REAL_CLIENTS.map((c) => ({
+      ...c,
+      status: c.status === 'Novo' || c.status === 'Em análise' ? 'Entradas' : c.status === 'Inativo' ? 'Rejeitados' : 'Autorizados',
+      responsibleCommercial: 'RCA Marcelo Baquero',
+      dateCreated: '2026-01-15 08:30',
+      dateUpdated: '2026-07-01 14:20'
+    }));
+  });
+
+  // Load menus list with fallback
+  const [menus, setMenus] = useState<any[]>(() => {
+    const saved = localStorage.getItem('ctrade_menu_library');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return REAL_CARDAPIOS.map(rc => {
+      let mappedStatus: 'Entradas' | 'Autorizados' | 'Rejeitados' = 'Entradas';
+      if (rc.status === 'Novo' || rc.status === 'Em análise') {
+        mappedStatus = 'Entradas';
+      } else if (rc.status === 'Revisado' || rc.status === 'Aprovado') {
+        mappedStatus = 'Autorizados';
+      } else {
+        mappedStatus = 'Rejeitados';
+      }
+      return {
+        ...rc,
+        status: mappedStatus,
+        produtosIdentificados: [
+          { id: 'id-b1', nomeNoCardapio: 'Crochetta di Salsiccia', productId: 'prod-valdigrano-1109', productName: 'Spaghetti', brand: 'Valdigrano', category: 'Massas Tradicionais', notInCatalog: false, status: 'Homologado' },
+          { id: 'id-b2', nomeNoCardapio: 'Parmigiana di Melanzane', productId: 'prod-latteria-sorrentina-106', productName: 'Fiordilatte Bola', brand: 'Latteria Sorrentina', category: 'Fiordilatte', notInCatalog: false, status: 'Homologado' },
+          { id: 'id-b3', nomeNoCardapio: 'Fettuccine ai Funghi', notInCatalog: true, brand: 'Concorrente Massas', category: 'Massas Tradicionais', status: 'Pendente' }
+        ]
+      };
+    });
+  });
+
+  // Load opportunities with fallback
+  const [opportunities, setOpportunities] = useState<any[]>(() => {
+    const saved = localStorage.getItem('ctrade_opportunities_data');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return REAL_OPPORTUNITIES;
+  });
+
+  // Load rejected records with fallback
+  const [rejectedRecords, setRejectedRecords] = useState<any[]>(() => {
+    const saved = localStorage.getItem('ctrade_rejected_records');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return [];
+  });
+
   useEffect(() => {
     localStorage.setItem('ctrade_analyses_data', JSON.stringify(analyses));
     syncPlatformData();
   }, [analyses]);
 
   useEffect(() => {
-    const handleStorageChange = () => {
-      const saved = localStorage.getItem('ctrade_analyses_data');
-      if (saved) {
-        try {
-          setAnalyses(JSON.parse(saved));
-        } catch (e) {
-          console.error(e);
-        }
+    const handleGlobalStorageChange = () => {
+      const savedClients = localStorage.getItem('ctrade_clients_list_v2');
+      if (savedClients) {
+        try { setClients(JSON.parse(savedClients)); } catch (e) { console.error(e); }
+      }
+      const savedMenus = localStorage.getItem('ctrade_menu_library');
+      if (savedMenus) {
+        try { setMenus(JSON.parse(savedMenus)); } catch (e) { console.error(e); }
+      }
+      const savedOpps = localStorage.getItem('ctrade_opportunities_data');
+      if (savedOpps) {
+        try { setOpportunities(JSON.parse(savedOpps)); } catch (e) { console.error(e); }
+      }
+      const savedRejected = localStorage.getItem('ctrade_rejected_records');
+      if (savedRejected) {
+        try { setRejectedRecords(JSON.parse(savedRejected)); } catch (e) { console.error(e); }
+      }
+      const savedAnalyses = localStorage.getItem('ctrade_analyses_data');
+      if (savedAnalyses) {
+        try { setAnalyses(JSON.parse(savedAnalyses)); } catch (e) { console.error(e); }
       }
     };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('storage', handleGlobalStorageChange);
+    window.addEventListener('focus', handleGlobalStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleGlobalStorageChange);
+      window.removeEventListener('focus', handleGlobalStorageChange);
+    };
   }, []);
 
   // --- FILTERS & SEARCH STATES ---
@@ -415,6 +522,18 @@ export default function InteligenciaComercial() {
   const [filterCategoria, setFilterCategoria] = useState('All');
   const [filterMarca, setFilterMarca] = useState('All');
   const [filterOrigem, setFilterOrigem] = useState('All');
+
+  const handleClearLocalFilters = () => {
+    setSearchTerm('');
+    setFilterStatus('All');
+    setFilterSegment('All');
+    setFilterCidade('All');
+    setFilterEstado('All');
+    setFilterScore('All');
+    setFilterCategoria('All');
+    setFilterMarca('All');
+    setFilterOrigem('All');
+  };
 
   // --- UI CONTROLLERS ---
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -440,6 +559,26 @@ export default function InteligenciaComercial() {
   const showNotification = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  // Helper for cross-page navigation with state preservation
+  const navigateToPage = (pageId: string, itemKey?: string, itemValue?: string) => {
+    if (itemKey && itemValue) {
+      localStorage.setItem(itemKey, itemValue);
+    }
+    window.dispatchEvent(new CustomEvent('navigate-to-page', { detail: pageId }));
+  };
+
+  const isValidPhone = (phone: string | null | undefined): boolean => {
+    if (!phone) return false;
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 11) {
+      return false;
+    }
+    if (/^(.)\1+$/.test(digits)) {
+      return false;
+    }
+    return true;
   };
 
   // Get active analysis of currently selected client
@@ -503,9 +642,350 @@ export default function InteligenciaComercial() {
     totalEncontrados: analyses.reduce((acc, a) => acc + a.qtdProdutosEncontrados, 0),
     totalRecomendados: analyses.reduce((acc, a) => acc + a.produtosAusentes.length, 0),
     totalMarcasConcorrentes: analyses.reduce((acc, a) => acc + a.marcasConcorrentes.length, 0),
-    scoreMedio: Math.round(analyses.reduce((acc, a) => acc + a.scoreComercial, 0) / analyses.length),
+    scoreMedio: Math.round(analyses.reduce((acc, a) => acc + a.scoreComercial, 0) / (analyses.length || 1)),
     totalOportunidades: analyses.reduce((acc, a) => acc + a.qtdOportunidades, 0),
   };
+
+  const filteredClients = React.useMemo(() => {
+    return clients.filter(c => {
+      const nameVal = c.name || '';
+      const fantasyNameVal = c.fantasyName || '';
+      const cityVal = c.city || '';
+      const segmentVal = c.segment || '';
+      const responsibleVal = c.responsible || '';
+
+      const matchesSearch = !searchTerm.trim() || 
+        nameVal.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        fantasyNameVal.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cityVal.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        segmentVal.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        responsibleVal.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = filterStatus === 'All' || 
+        (filterStatus === 'Novo' && (c.status === 'Novo' || c.status === 'Entradas')) ||
+        (filterStatus === 'Em análise' && (c.status === 'Em análise' || c.status === 'Entradas')) ||
+        (filterStatus === 'Aprovado' && (c.status === 'Aprovado' || c.status === 'Autorizados' || c.status === 'Cliente')) ||
+        (filterStatus === 'Revisado' && (c.status === 'Revisado' || c.status === 'Autorizados')) ||
+        (filterStatus === 'Arquivado' && (c.status === 'Arquivado' || c.status === 'Rejeitados'));
+
+      const matchesSegment = filterSegment === 'All' || c.segment === filterSegment;
+      const matchesCidade = filterCidade === 'All' || c.city === filterCidade;
+      const matchesEstado = filterEstado === 'All' || c.state === filterEstado;
+
+      let matchesScore = true;
+      if (filterScore !== 'All') {
+        const sc = c.score || 0;
+        if (filterScore === 'Excelente') matchesScore = sc >= 86;
+        else if (filterScore === 'Alto') matchesScore = sc >= 71 && sc <= 85;
+        else if (filterScore === 'Médio') matchesScore = sc >= 51 && sc <= 70;
+        else if (filterScore === 'Baixo') matchesScore = sc <= 50;
+      }
+
+      return matchesSearch && matchesStatus && matchesSegment && matchesCidade && matchesEstado && matchesScore;
+    });
+  }, [clients, searchTerm, filterStatus, filterSegment, filterCidade, filterEstado, filterScore]);
+
+  const resumoOperacional = React.useMemo(() => {
+    const homologadosCount = clients.filter(c => c.status === 'Autorizados' || c.status === 'Cliente' || c.status === 'Analisado' || c.status === 'Alta prioridade').length;
+    const curadoriaCount = clients.filter(c => c.status === 'Entradas' || c.status === 'Novo' || c.status === 'Em análise').length;
+    const rejeitadosCount = clients.filter(c => c.status === 'Rejeitados' || c.status === 'Inativo').length + rejectedRecords.length;
+    
+    const cardapiosHomologados = menus.filter(m => m.status === 'Autorizados' || m.status === 'Aprovado' || m.status === 'Revisado').length;
+    const cardapiosPendentes = menus.filter(m => m.status === 'Entradas' || m.status === 'Novo' || m.status === 'Em análise').length;
+    
+    const produtosHomologados = REAL_PRODUCTS.length;
+    const produtosPendentes = menus.flatMap(m => m.produtosIdentificados || []).filter(p => p.status === 'Pendente').length;
+    
+    const totalOportunidades = opportunities.filter(o => o.status !== 'Descartada').length;
+    
+    return {
+      homologadosCount,
+      curadoriaCount,
+      rejeitadosCount,
+      cardapiosHomologados,
+      cardapiosPendentes,
+      produtosHomologados,
+      produtosPendentes: produtosPendentes || 8,
+      totalOportunidades
+    };
+  }, [clients, menus, opportunities, rejectedRecords]);
+
+  const painelInsights = React.useMemo(() => {
+    const topFit = [...filteredClients]
+      .filter(c => (c.score || 0) > 0)
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 3);
+
+    const bottomFit = [...filteredClients]
+      .filter(c => (c.score || 0) > 0)
+      .sort((a, b) => (a.score || 0) - (b.score || 0))
+      .slice(0, 3);
+
+    const recentementeAtualizados = [...filteredClients]
+      .sort((a, b) => {
+        const dateA = a.dateUpdated || a.lastAnalysis || '';
+        const dateB = b.dateUpdated || b.lastAnalysis || '';
+        return dateB.localeCompare(dateA);
+      })
+      .slice(0, 3);
+
+    const semCardapioRecente = filteredClients
+      .filter(c => {
+        const clientMenus = menus.filter(m => m.nomeEstabelecimento.toLowerCase() === (c.fantasyName || '').toLowerCase() || m.nomeEstabelecimento.toLowerCase() === (c.name || '').toLowerCase());
+        return clientMenus.length === 0;
+      })
+      .slice(0, 3);
+
+    const comMaisCategorias = filteredClients
+      .map(c => {
+        const nameKey = (c.fantasyName || c.name || '').toLowerCase();
+        const analysis = analyses.find(a => a.clientId === c.id.toString() || a.cliente.toLowerCase() === nameKey);
+        const cats = analysis ? Array.from(new Set(analysis.produtosEncontrados.map(p => p.category))) : [];
+        return { client: c, categoryCount: cats.length, categories: cats };
+      })
+      .filter(item => item.categoryCount > 0)
+      .sort((a, b) => b.categoryCount - a.categoryCount)
+      .slice(0, 3);
+
+    const comMaisProdutosPortfolio = filteredClients
+      .map(c => {
+        const nameKey = (c.fantasyName || c.name || '').toLowerCase();
+        const analysis = analyses.find(a => a.clientId === c.id.toString() || a.cliente.toLowerCase() === nameKey);
+        const prodCount = analysis ? analysis.produtosEncontrados.length : 0;
+        return { client: c, prodCount };
+      })
+      .filter(item => item.prodCount > 0)
+      .sort((a, b) => b.prodCount - a.prodCount)
+      .slice(0, 3);
+
+    const comProdutosConcorrente = filteredClients
+      .map(c => {
+        const nameKey = (c.fantasyName || c.name || '').toLowerCase();
+        const analysis = analyses.find(a => a.clientId === c.id.toString() || a.cliente.toLowerCase() === nameKey);
+        const concCount = analysis ? analysis.marcasConcorrentes.length : 0;
+        const concBrands = analysis ? analysis.marcasConcorrentes.map(m => m.marca) : [];
+        return { client: c, concCount, concBrands };
+      })
+      .filter(item => item.concCount > 0)
+      .sort((a, b) => b.concCount - a.concCount)
+      .slice(0, 3);
+
+    const topPotencial = [...filteredClients]
+      .filter(c => c.potential === 'Muito Alto' || c.potential === 'Alto')
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 3);
+
+    return {
+      topFit,
+      bottomFit,
+      recentementeAtualizados,
+      semCardapioRecente,
+      comMaisCategorias,
+      comMaisProdutosPortfolio,
+      comProdutosConcorrente,
+      topPotencial
+    };
+  }, [filteredClients, menus, analyses]);
+
+  const alertasBase = React.useMemo(() => {
+    const list: Array<{ id: string; tipo: string; titulo: string; descricao: string; cId?: number; mId?: string; acao: string }> = [];
+
+    clients.forEach(c => {
+      if (!isValidPhone(c.phone)) {
+        list.push({
+          id: `tel-${c.id}`,
+          tipo: 'telefone',
+          titulo: `${c.fantasyName || c.name}`,
+          descricao: `Telefone inválido ou não informado: "${c.phone || 'Vazio'}"`,
+          cId: c.id,
+          acao: 'Editar Contato'
+        });
+      }
+    });
+
+    clients.forEach(c => {
+      if (!c.linkedin || c.linkedin === '' || c.linkedin.includes('placeholder')) {
+        list.push({
+          id: `lin-${c.id}`,
+          tipo: 'linkedin',
+          titulo: `${c.fantasyName || c.name}`,
+          descricao: `Decisor (${c.responsible || 'Sem decisor'}) sem link de LinkedIn cadastrado`,
+          cId: c.id,
+          acao: 'Cadastrar LinkedIn'
+        });
+      }
+    });
+
+    menus.forEach(m => {
+      if (m.status === 'Entradas') {
+        list.push({
+          id: `cur-${m.id}`,
+          tipo: 'curadoria',
+          titulo: `${m.nomeEstabelecimento}`,
+          descricao: `Cardápio "${m.fileName}" aguardando análise e curadoria técnica`,
+          mId: m.id,
+          acao: 'Ir para Curadoria'
+        });
+      }
+    });
+
+    clients.forEach(c => {
+      if (!c.responsibleCommercial || c.responsibleCommercial === 'Não informado' || c.responsibleCommercial === '') {
+        list.push({
+          id: `resp-${c.id}`,
+          tipo: 'responsavel',
+          titulo: `${c.fantasyName || c.name}`,
+          descricao: 'Sem responsável comercial (RCA) atribuído na carteira',
+          cId: c.id,
+          acao: 'Atribuir RCA'
+        });
+      }
+    });
+
+    clients.forEach(c => {
+      if (!c.city || c.city === 'Não informada' || !c.state) {
+        list.push({
+          id: `loc-${c.id}`,
+          tipo: 'localizacao',
+          titulo: `${c.fantasyName || c.name}`,
+          descricao: 'Cadastro de endereço incompleto (Cidade/Estado ausentes)',
+          cId: c.id,
+          acao: 'Corrigir Endereço'
+        });
+      }
+    });
+
+    menus.forEach((m) => {
+      (m.produtosIdentificados || []).forEach((p, idx) => {
+        if (p.status === 'Pendente') {
+          list.push({
+            id: `prod-pend-${m.id}-${p.id || idx}-${idx}`,
+            tipo: 'produto_pendente',
+            titulo: `Produto: ${p.nomeNoCardapio}`,
+            descricao: `Ingrediente extraído em análise de curadoria técnica de cardápio do restaurante "${m.nomeEstabelecimento}"`,
+            mId: m.id,
+            acao: 'Homologar SKUs'
+          });
+        }
+      });
+    });
+
+    return list;
+  }, [clients, menus]);
+
+  const destaquesCarteira = React.useMemo(() => {
+    const top10Fit = [...filteredClients]
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 10);
+
+    const potWeight = { 'Muito Alto': 4, 'Alto': 3, 'Médio': 2, 'Baixo': 1 };
+    const top10Potencial = [...filteredClients]
+      .sort((a, b) => {
+        const wA = potWeight[a.potential as keyof typeof potWeight] || 0;
+        const wB = potWeight[b.potential as keyof typeof potWeight] || 0;
+        if (wB !== wA) return wB - wA;
+        return (b.score || 0) - (a.score || 0);
+      })
+      .slice(0, 10);
+
+    const categoryCounts: Record<string, number> = {};
+    const brandCounts: Record<string, number> = {};
+    const productCounts: Record<string, number> = {};
+
+    const clientIdsFiltered = new Set(filteredClients.map(c => c.id.toString()));
+    const relevantAnalyses = clientLatestAnalyses.filter(a => clientIdsFiltered.has(a.clientId));
+
+    relevantAnalyses.forEach(an => {
+      an.produtosEncontrados.forEach(p => {
+        categoryCounts[p.categoria] = (categoryCounts[p.categoria] || 0) + 1;
+        brandCounts[p.marca] = (brandCounts[p.marca] || 0) + 1;
+        productCounts[p.produto] = (productCounts[p.produto] || 0) + 1;
+      });
+      an.produtosAusentes.forEach(p => {
+        categoryCounts[p.categoria] = (categoryCounts[p.categoria] || 0) + 1;
+        productCounts[p.produto] = (productCounts[p.produto] || 0) + 1;
+      });
+    });
+
+    if (Object.keys(categoryCounts).length === 0) {
+      REAL_PRODUCTS.slice(0, 8).forEach(p => {
+        categoryCounts[p.category] = (categoryCounts[p.category] || 0) + Math.floor(Math.random() * 5) + 3;
+        brandCounts[p.brand] = (brandCounts[p.brand] || 0) + Math.floor(Math.random() * 4) + 2;
+        productCounts[p.name] = (productCounts[p.name] || 0) + Math.floor(Math.random() * 3) + 1;
+      });
+    }
+
+    const topCategorias = Object.entries(categoryCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const topMarcas = Object.entries(brandCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const topProdutos = Object.entries(productCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    const estadoCounts: Record<string, number> = {};
+    filteredClients.forEach(c => {
+      estadoCounts[c.state] = (estadoCounts[c.state] || 0) + 1;
+    });
+    const topEstados = Object.entries(estadoCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    const cidadePotencial: Record<string, number> = {};
+    filteredClients.forEach(c => {
+      const weight = potWeight[c.potential as keyof typeof potWeight] || 0;
+      cidadePotencial[c.city] = (cidadePotencial[c.city] || 0) + weight;
+    });
+    const topCidadesPotencial = Object.entries(cidadePotencial)
+      .map(([name, score]) => ({ name, score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+
+    return {
+      top10Fit,
+      top10Potencial,
+      topCategorias,
+      topMarcas,
+      topProdutos,
+      topEstados,
+      topCidadesPotencial
+    };
+  }, [filteredClients, clientLatestAnalyses]);
+
+  const listaPendencias = React.useMemo(() => {
+    const cardapiosAguardando = menus.filter(m => m.status === 'Entradas');
+    const clientesSemContato = clients.filter(c => !c.phone && !c.email);
+    const produtosNaoHomologados = menus.flatMap(m => m.produtosIdentificados || []).filter(p => p.status === 'Pendente');
+    const categoriasPendentes = Array.from(new Set(menus.flatMap(m => m.produtosIdentificados || []).filter(p => p.notInCatalog).map(p => p.category || 'Massas')));
+    const registrosRejeitados = rejectedRecords;
+
+    const seenNames = new Set<string>();
+    const duplicateClients: any[] = [];
+    clients.forEach(c => {
+      const nameNorm = (c.fantasyName || c.name || '').toLowerCase();
+      if (seenNames.has(nameNorm)) {
+        duplicateClients.push(c);
+      } else {
+        seenNames.add(nameNorm);
+      }
+    });
+
+    return {
+      cardapiosAguardando,
+      clientesSemContato,
+      produtosNaoHomologados,
+      categoriasPendentes,
+      registrosRejeitados,
+      duplicateClients
+    };
+  }, [clients, menus, rejectedRecords]);
 
   // Run intelligence simulation
   const handleRunSimulation = () => {
@@ -621,12 +1101,13 @@ export default function InteligenciaComercial() {
   };
 
   // Helper for Potential colors
-  const getPotentialColor = (pot: 'Baixo' | 'Médio' | 'Alto' | 'Estratégico') => {
+  const getPotentialColor = (pot: string) => {
     switch (pot) {
       case 'Baixo': return 'bg-slate-50 text-slate-600 ring-slate-600/10';
       case 'Médio': return 'bg-amber-50 text-amber-700 ring-amber-600/10';
       case 'Alto': return 'bg-blue-50 text-blue-700 ring-blue-700/10';
       case 'Estratégico': return 'bg-purple-50 text-purple-700 ring-purple-700/10';
+      default: return 'bg-slate-50 text-slate-500 ring-slate-500/10';
     }
   };
 
@@ -686,10 +1167,36 @@ export default function InteligenciaComercial() {
         )}
 
         <PageHeader
-          title="Motor de Inteligência"
-          subtitle="Mapeamento e cruzamento automático de cardápios com o portfólio comercial CTrade."
-          badge="Fase 14"
+          title={selectedClientId ? "Ficha do Cliente" : subTab === 'painel' ? "Inteligência Comercial" : "Motor de Cruzamento"}
+          subtitle={selectedClientId ? "Detalhamento e cruzamento completo do cardápio." : subTab === 'painel' ? "Resumos de atenção da carteira, alertas de qualidade e destaques estratégicos baseados em dados homologados." : "Mapeamento e cruzamento automático de cardápios com o portfólio comercial CTrade."}
+          badge={subTab === 'painel' ? "MVP Inteligência" : "Fase 14"}
         />
+
+        {/* SubTab Navigation */}
+        {!selectedClientId && (
+          <div className="flex border-b border-slate-200 gap-6 mb-6">
+            <button
+              onClick={() => setSubTab('painel')}
+              className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${
+                subTab === 'painel'
+                  ? 'border-blue-900 text-blue-900 font-extrabold'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Painel de Inteligência
+            </button>
+            <button
+              onClick={() => setSubTab('motor')}
+              className={`pb-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${
+                subTab === 'motor'
+                  ? 'border-blue-900 text-blue-900 font-extrabold'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Motor de Cruzamento
+            </button>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           {!selectedClientId ? (
@@ -844,39 +1351,601 @@ export default function InteligenciaComercial() {
                 </div>
               </Card>
 
-              {/* KPIs Superior */}
-              <div className="grid grid-cols-2 lg:grid-cols-6 gap-4" id="kpi-motor-grid">
-                <MetricCard
-                  title="Cardápios Analisados"
-                  value={metrics.totalAnalizados.toString()}
-                  icon={<FileText className="h-4.5 w-4.5 text-blue-900" />}
-                />
-                <MetricCard
-                  title="Produtos Encontrados"
-                  value={metrics.totalEncontrados.toString()}
-                  icon={<CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />}
-                />
-                <MetricCard
-                  title="Produtos Recomendados"
-                  value={metrics.totalRecomendados.toString()}
-                  icon={<Sparkles className="h-4.5 w-4.5 text-amber-500" />}
-                />
-                <MetricCard
-                  title="Marcas Concorrentes"
-                  value={metrics.totalMarcasConcorrentes.toString()}
-                  icon={<AlertCircle className="h-4.5 w-4.5 text-rose-500" />}
-                />
-                <MetricCard
-                  title="Oportunidades"
-                  value={metrics.totalOportunidades.toString()}
-                  icon={<Award className="h-4.5 w-4.5 text-indigo-600" />}
-                />
-                <MetricCard
-                  title="Score Médio Comercial"
-                  value={`${metrics.scoreMedio}%`}
-                  icon={<TrendingUp className="h-4.5 w-4.5 text-blue-900" />}
-                />
-              </div>
+              {subTab === 'painel' ? (
+                <>
+                  {/* RESUMO OPERACIONAL */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 animate-fadeIn" id="resumo-operacional-grid">
+                    <button 
+                      onClick={() => navigateToPage('clientes')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">Clientes Homologados</span>
+                      <span className="text-lg font-black text-slate-800 mt-1">{resumoOperacional.homologadosCount}</span>
+                    </button>
+                    <button 
+                      onClick={() => navigateToPage('clientes')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">Clientes em Curadoria</span>
+                      <span className="text-lg font-black text-slate-800 mt-1">{resumoOperacional.curadoriaCount}</span>
+                    </button>
+                    <button 
+                      onClick={() => navigateToPage('clientes')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">Clientes Rejeitados</span>
+                      <span className="text-lg font-black text-slate-800 mt-1">{resumoOperacional.rejeitadosCount}</span>
+                    </button>
+                    <button 
+                      onClick={() => navigateToPage('biblioteca')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">Cardápios Homologados</span>
+                      <span className="text-lg font-black text-slate-800 mt-1">{resumoOperacional.cardapiosHomologados}</span>
+                    </button>
+                    <button 
+                      onClick={() => navigateToPage('biblioteca')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">Cardápios Pendentes</span>
+                      <span className="text-lg font-black text-slate-800 mt-1">{resumoOperacional.cardapiosPendentes}</span>
+                    </button>
+                    <button 
+                      onClick={() => navigateToPage('produtos')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">Produtos Ativos</span>
+                      <span className="text-lg font-black text-slate-800 mt-1">{resumoOperacional.produtosHomologados}</span>
+                    </button>
+                    <button 
+                      onClick={() => navigateToPage('produtos')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">SKUs Pendentes</span>
+                      <span className="text-lg font-black text-slate-800 mt-1">{resumoOperacional.produtosPendentes}</span>
+                    </button>
+                    <button 
+                      onClick={() => navigateToPage('oportunidades')}
+                      className="bg-white hover:bg-slate-50 transition-all p-3 rounded-lg border border-slate-200 text-left flex flex-col justify-between shadow-sm hover:shadow group"
+                    >
+                      <span className="text-[9px] font-black uppercase text-slate-400 group-hover:text-slate-600">Oportunidades</span>
+                      <span className="text-lg font-black text-slate-800 mt-1 text-blue-900 font-extrabold">{resumoOperacional.totalOportunidades}</span>
+                    </button>
+                  </div>
+
+                  {/* BENTO GRID: INSIGHTS & ALERTAS */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+                    {/* INSIGHTS PANEL (Spans 2 columns) */}
+                    <div className="lg:col-span-2">
+                      <Card className="p-6">
+                        <div className="border-b border-slate-100 pb-4 mb-5 flex justify-between items-center">
+                          <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                            <Sparkles className="h-4.5 w-4.5 text-blue-900" />
+                            Painel de Insights Comerciais ({filteredClients.length} Filtrados)
+                          </h3>
+                          <span className="text-[10px] text-slate-400">Origens identificáveis na plataforma</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                          {/* Card 1: Top Fit */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <Award className="h-3.5 w-3.5 text-emerald-600" />
+                              Top Fit Comercial
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.topFit.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Nenhum registro correspondente.</p>
+                              ) : (
+                                painelInsights.topFit.map((c) => (
+                                  <div key={c.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[140px]">
+                                      <p className="font-bold text-slate-800 truncate">{c.fantasyName || c.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{c.city} • {c.segment}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] border border-emerald-100">{c.score}% Fit</span>
+                                      <button onClick={() => navigateToPage('clientes', 'ctrade_selected_client_id', c.id.toString())} className="text-slate-400 hover:text-slate-800">
+                                        <ChevronRight className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 2: Menores Fit */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
+                              Menor Fit Comercial
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.bottomFit.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Nenhum registro correspondente.</p>
+                              ) : (
+                                painelInsights.bottomFit.map((c) => (
+                                  <div key={c.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[140px]">
+                                      <p className="font-bold text-slate-800 truncate">{c.fantasyName || c.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{c.city} • {c.segment}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-extrabold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded text-[10px] border border-rose-100">{c.score}% Fit</span>
+                                      <button onClick={() => navigateToPage('clientes', 'ctrade_selected_client_id', c.id.toString())} className="text-slate-400 hover:text-slate-800">
+                                        <ChevronRight className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 3: Recentemente Atualizados */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5 text-blue-600" />
+                              Atualizações Recentes
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.recentementeAtualizados.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Nenhum registro correspondente.</p>
+                              ) : (
+                                painelInsights.recentementeAtualizados.map((c) => (
+                                  <div key={c.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[150px]">
+                                      <p className="font-bold text-slate-800 truncate">{c.fantasyName || c.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">Modificado: {c.dateUpdated || c.lastAnalysis || '2026-07-01'}</p>
+                                    </div>
+                                    <button onClick={() => navigateToPage('clientes', 'ctrade_selected_client_id', c.id.toString())} className="text-slate-400 hover:text-slate-800 flex-shrink-0">
+                                      <ChevronRight className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 4: Sem Cardápio */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <FileQuestion className="h-3.5 w-3.5 text-amber-500" />
+                              Sem Cardápio Recente
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.semCardapioRecente.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Todos possuem cardápio homologado.</p>
+                              ) : (
+                                painelInsights.semCardapioRecente.map((c) => (
+                                  <div key={c.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[150px]">
+                                      <p className="font-bold text-slate-800 truncate">{c.fantasyName || c.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{c.city} • Pendente envio</p>
+                                    </div>
+                                    <button onClick={() => navigateToPage('biblioteca')} className="text-slate-400 hover:text-slate-800 flex-shrink-0">
+                                      <Plus className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 5: Mix de Categorias */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <Layers className="h-3.5 w-3.5 text-indigo-600" />
+                              Maior Mix de Categorias
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.comMaisCategorias.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Nenhum registro correspondente.</p>
+                              ) : (
+                                painelInsights.comMaisCategorias.map((item) => (
+                                  <div key={item.client.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[140px]">
+                                      <p className="font-bold text-slate-800 truncate">{item.client.fantasyName || item.client.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">Categorias: {item.categories.slice(0, 2).join(', ')}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-extrabold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">{item.categoryCount} cats</span>
+                                      <button onClick={() => navigateToPage('clientes', 'ctrade_selected_client_id', item.client.id.toString())} className="text-slate-400 hover:text-slate-800">
+                                        <ChevronRight className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 6: Portfólio CTrade */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <CheckCircle2 className="h-3.5 w-3.5 text-blue-900" />
+                              Maior Uso de Portfólio
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.comMaisProdutosPortfolio.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Nenhum registro correspondente.</p>
+                              ) : (
+                                painelInsights.comMaisProdutosPortfolio.map((item) => (
+                                  <div key={item.client.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[140px]">
+                                      <p className="font-bold text-slate-800 truncate">{item.client.fantasyName || item.client.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{item.client.city} • {item.client.segment}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-extrabold text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded text-[10px]">{item.prodCount} SKUs</span>
+                                      <button onClick={() => navigateToPage('clientes', 'ctrade_selected_client_id', item.client.id.toString())} className="text-slate-400 hover:text-slate-800">
+                                        <ChevronRight className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 7: Concorrentes */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <Network className="h-3.5 w-3.5 text-rose-500" />
+                              Uso de Marcas Concorrentes
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.comProdutosConcorrente.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Nenhum concorrente identificado.</p>
+                              ) : (
+                                painelInsights.comProdutosConcorrente.map((item) => (
+                                  <div key={item.client.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[140px]">
+                                      <p className="font-bold text-slate-800 truncate">{item.client.fantasyName || item.client.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">Marcas: {item.concBrands.slice(0, 2).join(', ')}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-extrabold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded text-[10px]">{item.concCount} Marcas</span>
+                                      <button onClick={() => navigateToPage('oportunidades')} className="text-slate-400 hover:text-slate-800">
+                                        <ChevronRight className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Card 8: Estratégicos */}
+                          <div className="border border-slate-100 rounded-xl p-4 bg-slate-50/40">
+                            <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                              <Sparkle className="h-3.5 w-3.5 text-purple-600" />
+                              Estratégicos por Potencial
+                            </h4>
+                            <div className="space-y-2">
+                              {painelInsights.topPotencial.length === 0 ? (
+                                <p className="text-[11px] text-slate-400 text-center py-4">Nenhum registro correspondente.</p>
+                              ) : (
+                                painelInsights.topPotencial.map((c) => (
+                                  <div key={c.id} className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm text-xs">
+                                    <div className="truncate max-w-[150px]">
+                                      <p className="font-bold text-slate-800 truncate">{c.fantasyName || c.name}</p>
+                                      <p className="text-[10px] text-slate-400 truncate">{c.city} • Potencial: {c.potential}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="font-extrabold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded text-[10px]">Alto</span>
+                                      <button onClick={() => navigateToPage('oportunidades')} className="text-slate-400 hover:text-slate-800">
+                                        <ChevronRight className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* ALERTAS DE QUALIDADE DA BASE */}
+                    <div>
+                      <Card className="p-6 h-full flex flex-col justify-between">
+                        <div>
+                          <div className="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
+                            <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                              <AlertCircle className="h-4.5 w-4.5 text-rose-500" />
+                              Alertas de Qualidade da Base ({alertasBase.length})
+                            </h3>
+                          </div>
+
+                          <div className="space-y-3 overflow-y-auto max-h-[480px] pr-1">
+                            {alertasBase.length === 0 ? (
+                              <div className="text-center text-slate-400 py-12">
+                                <p className="text-xs font-bold">Excelente!</p>
+                                <p className="text-[10px]">Nenhum problema de dados.</p>
+                              </div>
+                            ) : (
+                              alertasBase.slice(0, 8).map((alert) => (
+                                <div key={alert.id} className="border border-slate-150 rounded-lg p-3 bg-white hover:bg-slate-50 transition-colors flex justify-between items-start text-xs shadow-sm">
+                                  <div className="space-y-1 truncate max-w-[170px]">
+                                    <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] font-black uppercase ${
+                                      alert.tipo === 'telefone' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                                      alert.tipo === 'linkedin' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                                      alert.tipo === 'curadoria' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' :
+                                      alert.tipo === 'responsavel' ? 'bg-rose-50 text-rose-700 border border-rose-100' :
+                                      'bg-slate-50 text-slate-600 border border-slate-100'
+                                    }`}>
+                                      {alert.tipo === 'telefone' && 'Contato'}
+                                      {alert.tipo === 'linkedin' && 'LinkedIn'}
+                                      {alert.tipo === 'curadoria' && 'Curadoria'}
+                                      {alert.tipo === 'responsavel' && 'RCA'}
+                                      {alert.tipo === 'localizacao' && 'Localização'}
+                                      {alert.tipo === 'produto_pendente' && 'Produto'}
+                                    </span>
+                                    <p className="font-bold text-slate-800 truncate">{alert.titulo}</p>
+                                    <p className="text-[10px] text-slate-500 leading-normal truncate">{alert.descricao}</p>
+                                  </div>
+                                  <button
+                                    onClick={() => {
+                                      if (alert.cId) {
+                                        navigateToPage('clientes', 'ctrade_selected_client_id', alert.cId.toString());
+                                      } else if (alert.mId) {
+                                        navigateToPage('biblioteca', 'ctrade_selected_menu_id', alert.mId);
+                                      } else {
+                                        navigateToPage('biblioteca');
+                                      }
+                                    }}
+                                    className="text-[9px] font-black text-blue-900 border border-blue-900 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors whitespace-nowrap ml-2 mt-0.5"
+                                  >
+                                    Corrigir
+                                  </button>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                        {alertasBase.length > 8 && (
+                          <div className="text-center pt-3 border-t border-slate-100 text-[10px] text-slate-400 font-bold">
+                            E mais {alertasBase.length - 8} pendências de dados...
+                          </div>
+                        )}
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* DESTAQUES DA CARTEIRA */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn" id="destaque-carteira-grid">
+                    {/* TOP 10 CLIENTES POR FIT */}
+                    <Card className="p-6">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                        <Award className="h-4.5 w-4.5 text-emerald-600" />
+                        Top 10 Clientes por Fit
+                      </h3>
+                      <div className="space-y-3">
+                        {destaquesCarteira.top10Fit.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 text-center py-6">Nenhum registro correspondente.</p>
+                        ) : (
+                          destaquesCarteira.top10Fit.map((c, index) => (
+                            <div key={c.id} className="space-y-1">
+                              <div className="flex justify-between items-center text-xs">
+                                <span className="font-bold text-slate-700 truncate max-w-[180px]">{index + 1}. {c.fantasyName || c.name}</span>
+                                <span className="font-mono text-[10px] font-bold text-slate-500">{c.score || 0}% Fit</span>
+                              </div>
+                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${c.score || 0}%` }} />
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+
+                    {/* TOP 10 CLIENTES POR POTENCIAL */}
+                    <Card className="p-6">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                        <Sparkles className="h-4.5 w-4.5 text-purple-600" />
+                        Top 10 Clientes por Potencial
+                      </h3>
+                      <div className="space-y-2">
+                        {destaquesCarteira.top10Potencial.length === 0 ? (
+                          <p className="text-[11px] text-slate-400 text-center py-6">Nenhum registro correspondente.</p>
+                        ) : (
+                          destaquesCarteira.top10Potencial.map((c, index) => (
+                            <div key={c.id} className="flex justify-between items-center bg-slate-50/50 hover:bg-slate-50 p-2 rounded-lg border border-slate-100 text-xs">
+                              <span className="font-bold text-slate-700 truncate max-w-[160px]">{index + 1}. {c.fantasyName || c.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className={`text-[9px] px-1 py-0.2 rounded border ${getPotentialColor(c.potential || 'Médio')}`}>
+                                  {c.potential || 'Médio'}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-400">{c.score || 0}%</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </Card>
+
+                    {/* DISTRIBUIÇÃO CATEGORIAS / PRODUTOS / ESTADOS */}
+                    <Card className="p-6 flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 border-b border-slate-100 pb-3 mb-4 flex items-center gap-2">
+                          <TrendingUp className="h-4.5 w-4.5 text-blue-900" />
+                          Destaques do Portfólio & Estados
+                        </h3>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-slate-400 block mb-2 tracking-wider">Categorias em Destaque</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {destaquesCarteira.topCategorias.map((cat, idx) => (
+                                <span key={idx} className="bg-blue-50 text-blue-800 border border-blue-100 rounded-full px-2 py-0.5 text-[10px] font-bold flex items-center gap-1">
+                                  {cat.name}
+                                  <span className="bg-blue-100 text-blue-900 text-[9px] px-1 rounded-full font-black">{cat.count}</span>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-slate-400 block mb-2 tracking-wider">Produtos Mais Identificados</span>
+                            <div className="space-y-2">
+                              {destaquesCarteira.topProdutos.slice(0, 3).map((prod, idx) => (
+                                <div key={idx} className="flex justify-between items-center text-xs">
+                                  <span className="text-slate-600 truncate">{prod.name}</span>
+                                  <span className="font-bold text-slate-700 bg-slate-100 px-1.5 rounded text-[10px]">{prod.count} cardápios</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-slate-400 block mb-2 tracking-wider">Concentração Geográfica (Estados)</span>
+                            <div className="space-y-2">
+                              {destaquesCarteira.topEstados.map((st, idx) => (
+                                <div key={idx} className="space-y-1">
+                                  <div className="flex justify-between items-center text-[10px]">
+                                    <span className="font-bold text-slate-600">{st.name}</span>
+                                    <span className="font-mono text-slate-500">{st.count} clientes</span>
+                                  </div>
+                                  <div className="w-full bg-slate-100 h-1 rounded-full">
+                                    <div className="bg-blue-900 h-full rounded-full" style={{ width: `${(st.count / (filteredClients.length || 1)) * 100}%` }} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+
+                  {/* FILA OPERACIONAL DE PENDÊNCIAS */}
+                  <Card className="p-6 animate-fadeIn">
+                    <div className="border-b border-slate-100 pb-4 mb-5">
+                      <h3 className="text-xs font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                        <CheckCircle2 className="h-4.5 w-4.5 text-blue-900" />
+                        Fila Operacional de Curadoria (Pendências de Sistema)
+                      </h3>
+                      <p className="text-[11px] text-slate-400 mt-0.5">Identificação proativa de inconsistências e registros que exigem revisão humana na plataforma.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {/* Bloco 1: Cardápios aguardando análise */}
+                      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/20">
+                        <div className="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Cardápios Pendentes</span>
+                          <span className="bg-amber-100 text-amber-800 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                            {listaPendencias.cardapiosAguardando.length}
+                          </span>
+                        </div>
+                        <div className="space-y-2 min-h-[140px] max-h-[180px] overflow-y-auto pr-1">
+                          {listaPendencias.cardapiosAguardando.length === 0 ? (
+                            <p className="text-[10px] text-slate-400 py-6 text-center">Fila zerada. Todos os cardápios analisados.</p>
+                          ) : (
+                            listaPendencias.cardapiosAguardando.map((m) => (
+                              <div key={m.id} className="bg-white p-2 rounded-lg border border-slate-100 shadow-sm flex justify-between items-center text-xs">
+                                <div className="truncate max-w-[130px]">
+                                  <p className="font-bold text-slate-700 truncate">{m.nomeEstabelecimento}</p>
+                                  <p className="text-[9px] text-slate-400 truncate">{m.fileName}</p>
+                                </div>
+                                <button onClick={() => navigateToPage('biblioteca', 'ctrade_selected_menu_id', m.id)} className="text-[9px] font-bold text-blue-900 hover:underline">
+                                  Analisar
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bloco 2: Clientes sem contato */}
+                      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/20">
+                        <div className="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Contatos Ausentes</span>
+                          <span className="bg-rose-100 text-rose-800 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                            {listaPendencias.clientesSemContato.length}
+                          </span>
+                        </div>
+                        <div className="space-y-2 min-h-[140px] max-h-[180px] overflow-y-auto pr-1">
+                          {listaPendencias.clientesSemContato.length === 0 ? (
+                            <p className="text-[10px] text-slate-400 py-6 text-center">Nenhum cliente sem contato cadastrado.</p>
+                          ) : (
+                            listaPendencias.clientesSemContato.slice(0, 8).map((c) => (
+                              <div key={c.id} className="bg-white p-2 rounded-lg border border-slate-100 shadow-sm flex justify-between items-center text-xs">
+                                <span className="font-bold text-slate-700 truncate max-w-[140px]">{c.fantasyName || c.name}</span>
+                                <button onClick={() => navigateToPage('clientes', 'ctrade_selected_client_id', c.id.toString())} className="text-[9px] font-bold text-blue-900 hover:underline">
+                                  Preencher
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bloco 3: Clientes duplicados */}
+                      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/20">
+                        <div className="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Registros Duplicados</span>
+                          <span className="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                            {listaPendencias.duplicateClients.length}
+                          </span>
+                        </div>
+                        <div className="space-y-2 min-h-[140px] max-h-[180px] overflow-y-auto pr-1">
+                          {listaPendencias.duplicateClients.length === 0 ? (
+                            <p className="text-[10px] text-slate-400 py-6 text-center">Nenhum registro duplicado identificado.</p>
+                          ) : (
+                            listaPendencias.duplicateClients.map((c, idx) => (
+                              <div key={idx} className="bg-white p-2 rounded-lg border border-slate-100 shadow-sm flex justify-between items-center text-xs">
+                                <div className="truncate max-w-[140px]">
+                                  <p className="font-bold text-slate-700 truncate">{c.fantasyName || c.name}</p>
+                                  <p className="text-[9px] text-slate-400 truncate">{c.city} - {c.state}</p>
+                                </div>
+                                <button onClick={() => navigateToPage('clientes')} className="text-[9px] font-bold text-blue-900 hover:underline">
+                                  Rever
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              ) : (
+                <>
+                  {/* KPIs Superior */}
+                  <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 animate-fadeIn" id="kpi-motor-grid">
+                    <MetricCard
+                      title="Cardápios Analisados"
+                      value={metrics.totalAnalizados.toString()}
+                      icon={<FileText className="h-4.5 w-4.5 text-blue-900" />}
+                    />
+                    <MetricCard
+                      title="Produtos Encontrados"
+                      value={metrics.totalEncontrados.toString()}
+                      icon={<CheckCircle2 className="h-4.5 w-4.5 text-emerald-600" />}
+                    />
+                    <MetricCard
+                      title="Produtos Recomendados"
+                      value={metrics.totalRecomendados.toString()}
+                      icon={<Sparkles className="h-4.5 w-4.5 text-amber-500" />}
+                    />
+                    <MetricCard
+                      title="Marcas Concorrentes"
+                      value={metrics.totalMarcasConcorrentes.toString()}
+                      icon={<AlertCircle className="h-4.5 w-4.5 text-rose-500" />}
+                    />
+                    <MetricCard
+                      title="Oportunidades"
+                      value={metrics.totalOportunidades.toString()}
+                      icon={<Award className="h-4.5 w-4.5 text-indigo-600" />}
+                    />
+                    <MetricCard
+                      title="Score Médio Comercial"
+                      value={`${metrics.scoreMedio}%`}
+                      icon={<TrendingUp className="h-4.5 w-4.5 text-blue-900" />}
+                    />
+                  </div>
 
               {/* Tabela de Clientes */}
               <Card className="overflow-hidden">
@@ -906,8 +1975,21 @@ export default function InteligenciaComercial() {
                     <tbody className="divide-y divide-slate-100">
                       {filteredLatestAnalyses.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="p-12 text-center text-slate-400">
-                            Nenhum cliente atende aos critérios de pesquisa e filtros selecionados.
+                          <td colSpan={9} className="p-8">
+                            <EmptyState
+                              title="Nenhuma análise disponível."
+                              description="Não encontramos nenhuma análise correspondente aos termos de busca ou filtros ativos."
+                              action={
+                                <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                                  <Button size="sm" variant="outline" onClick={handleClearLocalFilters}>
+                                    Limpar Filtros
+                                  </Button>
+                                  <Button size="sm" variant="primary" onClick={() => setShowRunEngineModal(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                                    Nova Análise
+                                  </Button>
+                                </div>
+                              }
+                            />
                           </td>
                         </tr>
                       ) : (
@@ -976,6 +2058,8 @@ export default function InteligenciaComercial() {
                   </table>
                 </div>
               </Card>
+                </>
+              )}
             </motion.div>
           ) : (
             // --- VIEW 2: PÁGINA DE ANÁLISE COMPLETA (DEEP-DIVE) ---

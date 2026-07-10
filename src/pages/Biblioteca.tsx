@@ -329,14 +329,36 @@ export default function Biblioteca() {
   const [selectedItem, setSelectedItem] = useState<CardapioItem | null>(null);
 
   useEffect(() => {
-    const targetMenuId = localStorage.getItem('ctrade_selected_menu_id');
-    if (targetMenuId && items.length > 0) {
-      const found = items.find(item => item.id.toString() === targetMenuId.toString() || (item.nomeEstabelecimento && item.nomeEstabelecimento.toLowerCase() === targetMenuId.toLowerCase()));
-      if (found) {
-        setSelectedItem(found);
-        localStorage.removeItem('ctrade_selected_menu_id');
+    const checkTargetMenu = () => {
+      const targetMenuId = localStorage.getItem('ctrade_selected_menu_id');
+      if (targetMenuId && items.length > 0) {
+        const found = items.find(item => item.id.toString() === targetMenuId.toString() || (item.nomeEstabelecimento && item.nomeEstabelecimento.toLowerCase() === targetMenuId.toLowerCase()));
+        if (found) {
+          setSelectedItem(found);
+          localStorage.removeItem('ctrade_selected_menu_id');
+        }
       }
-    }
+    };
+    checkTargetMenu();
+
+    const handleOpenMenu = (e: Event) => {
+      const customEvent = e as CustomEvent<{ menuId: string | number }>;
+      if (customEvent.detail && customEvent.detail.menuId && items.length > 0) {
+        const found = items.find(item => item.id.toString() === customEvent.detail.menuId.toString());
+        if (found) {
+          setSelectedItem(found);
+        }
+      }
+    };
+    window.addEventListener('open-menu', handleOpenMenu);
+    window.addEventListener('storage', checkTargetMenu);
+    window.addEventListener('focus', checkTargetMenu);
+
+    return () => {
+      window.removeEventListener('open-menu', handleOpenMenu);
+      window.removeEventListener('storage', checkTargetMenu);
+      window.removeEventListener('focus', checkTargetMenu);
+    };
   }, [items]);
 
   // States for Curation, List/Grid toggles, and Modals
@@ -1294,12 +1316,17 @@ export default function Biblioteca() {
                       <tr>
                         <td colSpan={8} className="py-12">
                           <EmptyState
-                            title="Nenhum cardápio corresponde"
+                            title="Nenhum cardápio disponível."
                             description="Não encontramos registros que correspondam aos termos de busca ou filtros ativos."
                             action={
-                              <Button size="sm" variant="secondary" onClick={handleClearFilters}>
-                                Limpar Todos os Filtros
-                              </Button>
+                              <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                                <Button size="sm" variant="outline" onClick={handleClearFilters}>
+                                  Limpar Filtros
+                                </Button>
+                                <Button size="sm" variant="primary" onClick={() => setIsUploadModalOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                                  Enviar Cardápio
+                                </Button>
+                              </div>
                             }
                           />
                         </td>
@@ -1393,12 +1420,17 @@ export default function Biblioteca() {
               ) : (
                 <div className="col-span-full py-12">
                   <EmptyState
-                    title="Nenhum cardápio corresponde"
+                    title="Nenhum cardápio disponível."
                     description="Não encontramos registros que correspondam aos termos de busca ou filtros ativos."
                     action={
-                      <Button size="sm" variant="secondary" onClick={handleClearFilters}>
-                        Limpar Todos os Filtros
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                        <Button size="sm" variant="outline" onClick={handleClearFilters}>
+                          Limpar Filtros
+                        </Button>
+                        <Button size="sm" variant="primary" onClick={() => setIsUploadModalOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                          Enviar Cardápio
+                        </Button>
+                      </div>
                     }
                   />
                 </div>
@@ -1597,8 +1629,8 @@ export default function Biblioteca() {
                             </h5>
                             
                             <div className="pl-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {products.map(p => (
-                                <div key={p.id} className="bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-between group/prod relative">
+                              {products.map((p, pIdx) => (
+                                <div key={`${p.id || 'p'}-${pIdx}`} className="bg-slate-50/50 hover:bg-slate-50 border border-slate-100 rounded-xl p-3 flex flex-col justify-between group/prod relative">
                                   <div>
                                     <div className="flex items-start justify-between gap-2">
                                       <span className="text-xs font-semibold text-slate-800">{p.nomeNoCardapio}</span>
@@ -1690,8 +1722,8 @@ export default function Biblioteca() {
                     if (pending.length > 0) {
                       return (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {pending.map(p => (
-                            <div key={p.id} className="bg-orange-50/20 border border-orange-100 rounded-xl p-4 flex flex-col justify-between h-full">
+                          {pending.map((p, pIdx) => (
+                            <div key={`${p.id || 'p'}-${pIdx}`} className="bg-orange-50/20 border border-orange-100 rounded-xl p-4 flex flex-col justify-between h-full">
                               <div>
                                 <div className="flex items-start justify-between gap-2">
                                   <span className="text-xs font-bold text-slate-800">{p.nomeNoCardapio}</span>

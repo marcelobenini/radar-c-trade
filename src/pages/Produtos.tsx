@@ -10,7 +10,7 @@ import PageHeader from '../components/shared/PageHeader';
 import Button from '../components/ui/Button';
 import { Card, MetricCard } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
-import { Badge, ProgressBar, Spinner, Toast } from '../components/ui/Feedback';
+import { Badge, ProgressBar, Spinner, Toast, EmptyState } from '../components/ui/Feedback';
 import ScoreIndicator from '../components/ui/Score';
 import GlobalFilters, { matchesScoreRange } from '../components/shared/GlobalFilters';
 import Breadcrumb, { BreadcrumbItem } from '../components/ui/Breadcrumb';
@@ -240,6 +240,40 @@ export default function Produtos() {
   // Selected Product for Details Drawer
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [drawerActiveTab, setDrawerActiveTab] = useState<'perfil' | 'ia'>('perfil');
+
+  // Target pre-selection and custom event listener for Products
+  useEffect(() => {
+    const checkTargetProduct = () => {
+      const targetProdId = localStorage.getItem('ctrade_selected_product_id');
+      if (targetProdId && initialProducts.length > 0) {
+        const found = initialProducts.find(p => p.id === targetProdId || p.sku === targetProdId);
+        if (found) {
+          setSelectedProduct(found);
+          localStorage.removeItem('ctrade_selected_product_id');
+        }
+      }
+    };
+    checkTargetProduct();
+
+    const handleOpenProduct = (e: Event) => {
+      const customEvent = e as CustomEvent<{ productId: string }>;
+      if (customEvent.detail && customEvent.detail.productId && initialProducts.length > 0) {
+        const found = initialProducts.find(p => p.id === customEvent.detail.productId || p.sku === customEvent.detail.productId);
+        if (found) {
+          setSelectedProduct(found);
+        }
+      }
+    };
+    window.addEventListener('open-product', handleOpenProduct);
+    window.addEventListener('storage', checkTargetProduct);
+    window.addEventListener('focus', checkTargetProduct);
+
+    return () => {
+      window.removeEventListener('open-product', handleOpenProduct);
+      window.removeEventListener('storage', checkTargetProduct);
+      window.removeEventListener('focus', checkTargetProduct);
+    };
+  }, []);
 
   // Simulated calculations
   const [isSimulatingSinergy, setIsSimulatingSinergy] = useState<boolean>(false);
@@ -645,14 +679,20 @@ export default function Produtos() {
 
         {/* --- CATALOG VIEW CONTROLLER --- */}
         {filteredProducts.length === 0 ? (
-          <div className="mt-8 border-2 border-dashed border-slate-200 rounded-2xl p-14 bg-white flex flex-col items-center justify-center text-center">
-            <Package className="h-10 w-10 text-slate-300 mb-3 animate-bounce" />
-            <h4 className="text-sm font-bold text-slate-800">Nenhum insumo encontrado</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm">Tente reajustar suas palavras-chave de busca ou redefinir os filtros ativos.</p>
-            <Button variant="secondary" size="sm" className="mt-4" onClick={handleClearFilters}>
-              Resetar Filtros
-            </Button>
-          </div>
+          <EmptyState
+            title="Nenhum produto localizado."
+            description="Não encontramos registros que correspondam aos termos de busca ou filtros ativos."
+            action={
+              <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                <Button variant="outline" size="sm" onClick={handleClearFilters} leftIcon={<Eraser className="h-4 w-4" />}>
+                  Limpar Filtros
+                </Button>
+                <Button variant="primary" size="sm" onClick={handleClearFilters}>
+                  Consultar Catálogo
+                </Button>
+              </div>
+            }
+          />
         ) : viewLayout === 'grid' ? (
           // --- GRID VIEW ---
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6" id="products-catalog-grid">

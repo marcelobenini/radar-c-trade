@@ -51,6 +51,7 @@ import {
 import { formatCurrency } from '../utils/formatters';
 import { REAL_OPPORTUNITIES, REAL_CLIENTS } from '../data/realData';
 import GlobalFilters from '../components/shared/GlobalFilters';
+import FitComercial from '../components/ui/FitComercial';
 import { syncPlatformData } from '../utils/platformSync';
 
 // Type definitions matching requested specifications
@@ -198,6 +199,7 @@ export default function Oportunidades() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'kanban' | 'list' | 'history'>('kanban');
+  const [sortBy, setSortBy] = useState<'priority' | 'fitDesc' | 'fitAsc' | 'valueDesc'>('priority');
 
   // Move details observation state
   const [moveObservation, setMoveObservation] = useState('');
@@ -413,6 +415,40 @@ export default function Oportunidades() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
+  // Target pre-selection and custom event listener for Opportunities
+  useEffect(() => {
+    const checkTargetOpportunity = () => {
+      const targetOppId = localStorage.getItem('ctrade_selected_opportunity_id');
+      if (targetOppId && opportunities.length > 0) {
+        const found = opportunities.find(o => o.id === targetOppId);
+        if (found) {
+          setSelectedOpportunity(found);
+          localStorage.removeItem('ctrade_selected_opportunity_id');
+        }
+      }
+    };
+    checkTargetOpportunity();
+
+    const handleOpenOpportunity = (e: Event) => {
+      const customEvent = e as CustomEvent<{ opportunityId: string }>;
+      if (customEvent.detail && customEvent.detail.opportunityId && opportunities.length > 0) {
+        const found = opportunities.find(o => o.id === customEvent.detail.opportunityId);
+        if (found) {
+          setSelectedOpportunity(found);
+        }
+      }
+    };
+    window.addEventListener('open-opportunity', handleOpenOpportunity);
+    window.addEventListener('storage', checkTargetOpportunity);
+    window.addEventListener('focus', checkTargetOpportunity);
+
+    return () => {
+      window.removeEventListener('open-opportunity', handleOpenOpportunity);
+      window.removeEventListener('storage', checkTargetOpportunity);
+      window.removeEventListener('focus', checkTargetOpportunity);
+    };
+  }, [opportunities]);
+
   // Filtered Opportunities List based on global session filters
   const filteredOpportunities = useMemo(() => {
     return opportunities.filter((o) => {
@@ -508,9 +544,57 @@ export default function Oportunidades() {
         }
       }
 
+      // 8. Score Fit (single range)
+      if (sessionFilters.scoreFit !== 'all') {
+        const score = o.scoreFit;
+        const filterValue = sessionFilters.scoreFit;
+        let match = true;
+        if (filterValue === '0-20') match = score >= 0 && score <= 20;
+        else if (filterValue === '21-40') match = score >= 21 && score <= 40;
+        else if (filterValue === '41-60') match = score >= 41 && score <= 60;
+        else if (filterValue === '61-80') match = score >= 61 && score <= 80;
+        else if (filterValue === '81-100') match = score >= 81 && score <= 100;
+        if (!match) return false;
+      }
+
+      // 9. Score Comercial (single range)
+      if (sessionFilters.scoreComercial !== 'all') {
+        const score = o.scoreComercial;
+        const filterValue = sessionFilters.scoreComercial;
+        let match = true;
+        if (filterValue === '0-20') match = score >= 0 && score <= 20;
+        else if (filterValue === '21-40') match = score >= 21 && score <= 40;
+        else if (filterValue === '41-60') match = score >= 41 && score <= 60;
+        else if (filterValue === '61-80') match = score >= 61 && score <= 80;
+        else if (filterValue === '81-100') match = score >= 81 && score <= 100;
+        if (!match) return false;
+      }
+
       return true;
     });
   }, [clients, opportunities, sessionFilters]);
+
+  // Sorted list of opportunities
+  const sortedOpportunities = useMemo(() => {
+    const list = [...filteredOpportunities];
+    if (sortBy === 'fitDesc') {
+      return list.sort((a, b) => b.scoreFit - a.scoreFit);
+    }
+    if (sortBy === 'fitAsc') {
+      return list.sort((a, b) => a.scoreFit - b.scoreFit);
+    }
+    if (sortBy === 'valueDesc') {
+      return list.sort((a, b) => b.valorPotencialEstimado - a.valorPotencialEstimado);
+    }
+    // Default: priority order
+    const priorityWeight = { 'Alta': 3, 'Média': 2, 'Baixa': 1 };
+    return list.sort((a, b) => {
+      const weightA = priorityWeight[a.prioridade as 'Alta' | 'Média' | 'Baixa'] || 0;
+      const weightB = priorityWeight[b.prioridade as 'Alta' | 'Média' | 'Baixa'] || 0;
+      if (weightA !== weightB) return weightB - weightA;
+      return b.scoreFit - a.scoreFit; // Secondary sort: scoreFit descending
+    });
+  }, [filteredOpportunities, sortBy]);
 
   // Executive Summary & KPIs calculations (Real-time updates)
   const metrics = useMemo(() => {
@@ -851,6 +935,16 @@ export default function Oportunidades() {
     addToast('Alterações salvas!', 'Os dados da oportunidade foram atualizados.', 'success');
   };
 
+  const handleRecalculateOpportunities = () => {
+    addToast('Atualizando Análises', 'Recalculando scores e mapeando novos cardápios...', 'info');
+    setTimeout(() => {
+      setSessionFilters({
+        estados: [], cidades: [], regionais: [], rcas: [], categorias: [], produtos: [], marcas: [], segmentos: [], statuses: [], scoreComercial: 'all', scoreFit: 'all', cidade: '', cliente: '', periodoOption: '30', dataInicio: '', dataFim: ''
+      });
+      addToast('Análises Atualizadas!', 'O funil de oportunidades foi sincronizado e atualizado com sucesso.', 'success');
+    }, 1000);
+  };
+
   // Simulated export methods
   const handleDownloadPDF = (opp: Opportunity) => {
     addToast('Gerando Documento', `Compilando PDF de oportunidade comercial para ${opp.cliente}...`, 'info');
@@ -1012,61 +1106,82 @@ export default function Oportunidades() {
         />
       </div>
 
-      {/* --- VIEW SWITCHER TABS --- */}
-      <div className="flex border-b border-slate-200 mt-8 gap-6">
-        <button
-          onClick={() => setActiveTab('kanban')}
-          className={`py-3.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 px-1 ${
-            activeTab === 'kanban'
-              ? 'border-blue-900 text-blue-900'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <Sliders className="h-4 w-4" />
-          Pipeline Kanban ({filteredOpportunities.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('list')}
-          className={`py-3.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 px-1 ${
-            activeTab === 'list'
-              ? 'border-blue-900 text-blue-900'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          Lista Detalhada
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`py-3.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 px-1 ${
-            activeTab === 'history'
-              ? 'border-blue-900 text-blue-900'
-              : 'border-transparent text-slate-400 hover:text-slate-600'
-          }`}
-        >
-          <History className="h-4 w-4" />
-          Histórico de Operações ({globalHistoryLogs.length})
-        </button>
+      {/* --- VIEW SWITCHER TABS & SORTING CONTROLS --- */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 mt-8 gap-4">
+        <div className="flex gap-6 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('kanban')}
+            className={`py-3.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 px-1 shrink-0 ${
+              activeTab === 'kanban'
+                ? 'border-blue-900 text-blue-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <Sliders className="h-4 w-4" />
+            Pipeline Kanban ({filteredOpportunities.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`py-3.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 px-1 shrink-0 ${
+              activeTab === 'list'
+                ? 'border-blue-900 text-blue-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <FileText className="h-4 w-4" />
+            Lista Detalhada
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`py-3.5 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all border-b-2 px-1 shrink-0 ${
+              activeTab === 'history'
+                ? 'border-blue-900 text-blue-900'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <History className="h-4 w-4" />
+            Histórico de Operações ({globalHistoryLogs.length})
+          </button>
+        </div>
+
+        {/* Sort Select */}
+        <div className="flex items-center gap-2 pb-2 sm:pb-0">
+          <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">Ordenar por:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 focus:outline-hidden cursor-pointer hover:bg-slate-50 transition-colors"
+          >
+            <option value="priority">Prioridade e Fit (Automático)</option>
+            <option value="fitDesc">Fit Comercial (Maior Fit ↓)</option>
+            <option value="fitAsc">Fit Comercial (Menor Fit ↑)</option>
+            <option value="valueDesc">Potencial Comercial (Maior R$ ↓)</option>
+          </select>
+        </div>
       </div>
 
       {/* --- TAB 1: PIPELINE KANBAN BOARD --- */}
       {activeTab === 'kanban' && (
         <div className="mt-6">
           {filteredOpportunities.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 border border-slate-100 text-center flex flex-col items-center justify-center space-y-4">
-              <Layers className="h-10 w-10 text-slate-300 animate-pulse" />
-              <div>
-                <h4 className="text-sm font-bold text-slate-800">Nenhuma oportunidade atende a estes critérios</h4>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">Experimente alterar as seleções de estados, marcas ou categorias no painel de Filtros Globais acima.</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setSessionFilters({
-                estados: [], cidades: [], regionais: [], rcas: [], categorias: [], produtos: [], marcas: [], segmentos: [], statuses: [], scoreComercial: 'all', scoreFit: 'all', cidade: '', cliente: '', periodoOption: '30', dataInicio: '', dataFim: ''
-              })}>Limpar Filtros</Button>
-            </div>
+            <EmptyState
+              title="Nenhuma oportunidade disponível."
+              description="Nenhum registro corresponde aos filtros ou pesquisa selecionados."
+              action={
+                <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                  <Button variant="outline" size="sm" onClick={() => setSessionFilters({
+                    estados: [], cidades: [], regionais: [], rcas: [], categorias: [], produtos: [], marcas: [], segmentos: [], statuses: [], scoreComercial: 'all', scoreFit: 'all', cidade: '', cliente: '', periodoOption: '30', dataInicio: '', dataFim: ''
+                  })}>Limpar Filtros</Button>
+                  <Button variant="primary" size="sm" onClick={handleRecalculateOpportunities} leftIcon={<RefreshCw className="h-4 w-4" />}>
+                    Atualizar Análises
+                  </Button>
+                </div>
+              }
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 overflow-x-auto pb-4" id="opportunities-kanban-board">
               {kanbanColumns.map(col => {
-                const colOpps = filteredOpportunities.filter(o => o.status === col.id);
+                const colOpps = sortedOpportunities.filter(o => o.status === col.id);
                 return (
                   <div key={col.id} className="flex flex-col space-y-3 min-w-[220px]">
                     {/* Column Header */}
@@ -1184,10 +1299,21 @@ export default function Oportunidades() {
           </div>
 
           {filteredOpportunities.length === 0 ? (
-            <div className="p-12 text-center flex flex-col items-center">
-              <Layers className="h-8 w-8 text-slate-300 mb-2 animate-pulse" />
-              <h5 className="text-xs font-bold text-slate-800">Nenhum registro encontrado</h5>
-              <p className="text-[10px] text-slate-400 mt-1 max-w-xs">Ajuste os filtros globais na parte superior do painel para exibir mais resultados.</p>
+            <div className="py-8">
+              <EmptyState
+                title="Nenhuma oportunidade disponível."
+                description="Nenhum registro corresponde aos filtros ou pesquisa selecionados."
+                action={
+                  <div className="flex flex-wrap items-center gap-2.5 justify-center">
+                    <Button variant="outline" size="sm" onClick={() => setSessionFilters({
+                      estados: [], cidades: [], regionais: [], rcas: [], categorias: [], produtos: [], marcas: [], segmentos: [], statuses: [], scoreComercial: 'all', scoreFit: 'all', cidade: '', cliente: '', periodoOption: '30', dataInicio: '', dataFim: ''
+                    })}>Limpar Filtros</Button>
+                    <Button variant="primary" size="sm" onClick={handleRecalculateOpportunities} leftIcon={<RefreshCw className="h-4 w-4" />}>
+                      Atualizar Análises
+                    </Button>
+                  </div>
+                }
+              />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1205,7 +1331,7 @@ export default function Oportunidades() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 text-slate-600 font-medium">
-                  {filteredOpportunities.map((opp) => (
+                  {sortedOpportunities.map((opp) => (
                     <tr
                       key={opp.id}
                       className="hover:bg-slate-50/30 transition-colors group cursor-pointer"
@@ -1243,10 +1369,24 @@ export default function Oportunidades() {
                       </td>
 
                       {/* Fit Score */}
-                      <td className="py-4 px-4 text-center">
-                        <span className="font-black text-emerald-600 text-[11px] bg-emerald-50 px-2 py-1 rounded-lg">
-                          {opp.scoreFit} pts
-                        </span>
+                      <td className="py-4 px-4">
+                        <div className="flex justify-center">
+                          {(() => {
+                            const matchingClient = clients.find(c => 
+                              (opp.clientId && c.cnpj && c.cnpj.replace(/\D/g, '') === opp.clientId.replace(/\D/g, '')) || 
+                              c.name.toLowerCase() === opp.cliente.toLowerCase() || 
+                              c.fantasyName.toLowerCase() === opp.cliente.toLowerCase()
+                            );
+                            return (
+                              <FitComercial 
+                                score={opp.scoreFit} 
+                                variant="compact" 
+                                history={matchingClient?.fitHistory}
+                                lastUpdated={matchingClient?.lastAnalysis || matchingClient?.dateUpdated}
+                              />
+                            );
+                          })()}
+                        </div>
                       </td>
 
                       {/* Potencial Estimado */}
@@ -1554,9 +1694,23 @@ export default function Oportunidades() {
                   <span className="text-slate-400">Potencial Comercial:</span>
                   <span className="text-blue-950 font-black">{formatCurrency(selectedOpportunity.valorPotencialEstimado)}</span>
                 </div>
-                <div className="flex justify-between text-xs font-semibold">
+                <div className="flex justify-between items-center text-xs font-semibold">
                   <span className="text-slate-400">Aderência ao Portfólio:</span>
-                  <span className="text-emerald-600 font-extrabold">{selectedOpportunity.scoreFit} pts</span>
+                  {(() => {
+                    const matchingClient = clients.find(c => 
+                      (selectedOpportunity.clientId && c.cnpj && c.cnpj.replace(/\D/g, '') === selectedOpportunity.clientId.replace(/\D/g, '')) || 
+                      c.name.toLowerCase() === selectedOpportunity.cliente.toLowerCase() || 
+                      c.fantasyName.toLowerCase() === selectedOpportunity.cliente.toLowerCase()
+                    );
+                    return (
+                      <FitComercial 
+                        score={selectedOpportunity.scoreFit} 
+                        variant="badge" 
+                        history={matchingClient?.fitHistory}
+                        lastUpdated={matchingClient?.lastAnalysis || matchingClient?.dateUpdated}
+                      />
+                    );
+                  })()}
                 </div>
                 <div className="flex justify-between text-xs font-semibold">
                   <span className="text-slate-400">Data de Cadastro:</span>

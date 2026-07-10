@@ -4,6 +4,7 @@
  */
 
 import { PageId } from '../../types';
+import { useSecurity } from '../../hooks/useSecurity';
 import {
   Home,
   Target,
@@ -19,7 +20,9 @@ import {
   Users,
   Library,
   Briefcase,
-  RefreshCw
+  RefreshCw,
+  ShieldCheck,
+  Database
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -31,6 +34,23 @@ interface SidebarProps {
   setIsMobileOpen: (open: boolean) => void;
 }
 
+// Maps PageId to its required module and action for RBAC validation
+const pagePermissions: Record<PageId, { module: string; action: string }> = {
+  visao_geral: { module: 'Dashboard', action: 'Visualizar' },
+  relatorios: { module: 'Relatórios', action: 'Visualizar' },
+  clientes: { module: 'Base de Clientes', action: 'Visualizar' },
+  biblioteca: { module: 'Central de Cardápios', action: 'Visualizar' },
+  produtos: { module: 'Catálogo de Produtos', action: 'Visualizar' },
+  inteligencia: { module: 'Dashboard', action: 'Visualizar' },
+  oportunidades: { module: 'Central de Oportunidades', action: 'Visualizar' },
+  radar: { module: 'Radar Comercial', action: 'Visualizar' },
+  integracoes: { module: 'Configurações', action: 'Visualizar' },
+  usuarios: { module: 'Usuários', action: 'Visualizar' },
+  configuracoes: { module: 'Configurações', action: 'Visualizar' },
+  auditoria: { module: 'Auditoria', action: 'Visualizar Auditoria' },
+  pipeline: { module: 'Central de Cardápios', action: 'Visualizar' }
+};
+
 export default function Sidebar({
   activePage,
   setActivePage,
@@ -39,6 +59,7 @@ export default function Sidebar({
   isMobileOpen,
   setIsMobileOpen,
 }: SidebarProps) {
+  const { hasPermission } = useSecurity();
 
   // Menu Definition structured by operational logic and data flow
   const menuGroups = [
@@ -62,6 +83,12 @@ export default function Sidebar({
     {
       title: 'Mapeamento & Cadastros',
       items: [
+        {
+          id: 'pipeline' as PageId,
+          title: 'Pipeline de Entrada',
+          subtitle: 'Ingestão e Validação',
+          icon: Database,
+        },
         {
           id: 'clientes' as PageId,
           title: 'Clientes',
@@ -121,6 +148,12 @@ export default function Sidebar({
           icon: Users,
         },
         {
+          id: 'auditoria' as PageId,
+          title: 'Auditoria',
+          subtitle: 'Histórico Operacional',
+          icon: ShieldCheck,
+        },
+        {
           id: 'configuracoes' as PageId,
           title: 'Configurações',
           subtitle: 'Central de Parâmetros',
@@ -129,6 +162,16 @@ export default function Sidebar({
       ]
     }
   ];
+
+  // Filter menu items by user permissions
+  const filteredGroups = menuGroups.map(group => {
+    const visibleItems = group.items.filter(item => {
+      const perm = pagePermissions[item.id];
+      if (!perm) return true;
+      return hasPermission(perm.module, perm.action);
+    });
+    return { ...group, items: visibleItems };
+  }).filter(group => group.items.length > 0);
 
   const handlePageSelect = (pageId: PageId) => {
     setActivePage(pageId);
@@ -182,7 +225,7 @@ export default function Sidebar({
 
         {/* Nav list with Sections */}
         <nav className="space-y-5">
-          {menuGroups.map((group, groupIdx) => (
+          {filteredGroups.map((group, groupIdx) => (
             <div key={groupIdx} className="space-y-1.5">
               {!isSidebarCollapsed ? (
                 <span className="px-3 text-[10px] uppercase font-bold tracking-widest text-slate-500 block mb-1">

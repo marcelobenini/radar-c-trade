@@ -149,18 +149,97 @@ export function syncPlatformData() {
           changed = true;
         }
 
-        // Calculate custom fit score based on homologated/identified products
-        const homologatedCount = matchingMenu.produtosIdentificados?.filter((p: any) => p.status === 'Homologado').length || 0;
-        const totalProductsIdentified = matchingMenu.produtosIdentificados?.length || 0;
-        
-        let calculatedScore = client.score || 65; // keep original if set or fallback
-        if (totalProductsIdentified > 0) {
-          calculatedScore = Math.min(98, 65 + (homologatedCount * 8) + (totalProductsIdentified * 2));
+        // Calculate MVP Fit Comercial score based on rule factors (scale 0-100)
+        // Factor 1: Quantity of homologated products found (6 pts per product, max 40 pts)
+        // Fonte de Dados: Never consider menus in curation or rejected
+        const isMenuValid = matchingMenu.status !== 'Em Curadoria' && matchingMenu.status !== 'Rejeitado';
+        const homologatedProducts = isMenuValid
+          ? (matchingMenu.produtosIdentificados?.filter((p: any) => p.status === 'Homologado') || [])
+          : [];
+        const homologatedCount = homologatedProducts.length;
+        const productsScore = Math.min(40, homologatedCount * 6);
+
+        // Factor 2: Quantity of unique categories identified (12 pts per category, max 30 pts)
+        const uniqueCategories = new Set(homologatedProducts.map((p: any) => p.category).filter(Boolean));
+        const categoriesCount = uniqueCategories.size;
+        const categoriesScore = Math.min(30, categoriesCount * 12);
+
+        // Factor 3: Diversity of categories (Bonus if more than 2 distinct categories: 10 pts)
+        const diversityBonus = categoriesCount > 2 ? 10 : 0;
+
+        // Factor 4: Recent update of the menu (Recent update in 2026: 20 pts, older or basic: 10 pts)
+        let recencyScore = 0;
+        if (matchingMenu.ultimaAtualizacao) {
+          recencyScore = matchingMenu.ultimaAtualizacao.includes('2026') ? 20 : 10;
+        } else {
+          recencyScore = 10;
         }
 
+        // Base points + factors, bounded between 0 and 100
+        let calculatedScore = Math.min(100, Math.max(0, 10 + productsScore + categoriesScore + diversityBonus + recencyScore));
+
         if (client.score !== calculatedScore) {
+          const prevScore = client.score || 0;
+          const diff = calculatedScore - prevScore;
+          const trendWord = diff > 0 ? 'aumento' : 'redução';
+          
+          let reason = 'Atualização do perfil comercial do cliente';
+          if (matchingMenu) {
+            const lastMenuUpdate = matchingMenu.ultimaAtualizacao;
+            const isMenuUpdateToday = lastMenuUpdate === todayStr;
+            
+            if (isMenuUpdateToday) {
+              reason = `Novo cardápio homologado com ${trendWord} de aderência ao portfólio.`;
+            } else {
+              reason = `Processamento de produtos identificados com ${trendWord} de conformidade premium.`;
+            }
+          }
+          
           client.score = calculatedScore;
+          
+          const trend = calculatedScore > prevScore ? 'up' : calculatedScore < prevScore ? 'down' : 'stable';
+          
+          // Add to fitHistory
+          client.fitHistory = [
+            {
+              id: 'fh-' + Date.now() + Math.floor(Math.random() * 100),
+              date: todayStr + ' ' + timeStr,
+              from: prevScore,
+              to: calculatedScore,
+              reason: reason,
+              trend: trend
+            },
+            ...(client.fitHistory || [])
+          ];
+
+          // Add to timeline/historicoCompleto
+          client.historicoCompleto = [
+            ...(client.historicoCompleto || []),
+            {
+              id: 'h-fit-' + Date.now() + Math.floor(Math.random() * 100),
+              data: todayStr + ' ' + timeStr,
+              usuario: 'Sincronizador Radar',
+              acao: `Fit Comercial recalculado: ${prevScore} → ${calculatedScore} pts. (${reason})`,
+              tipo: 'analise'
+            }
+          ];
+
           changed = true;
+        }
+
+        // Initialize fitHistory with a baseline if it doesn't exist
+        if (!client.fitHistory) {
+          const baselineScore = Math.max(0, calculatedScore - 7);
+          client.fitHistory = [
+            {
+              id: 'fh-init-' + Date.now() + Math.floor(Math.random() * 100),
+              date: '08/07/2026 14:32',
+              from: baselineScore,
+              to: calculatedScore,
+              reason: 'Homologação e análise cadastral inicial',
+              trend: calculatedScore > baselineScore ? 'up' : 'stable'
+            }
+          ];
         }
 
         let calculatedPotential = client.potential;

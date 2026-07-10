@@ -64,6 +64,9 @@ export interface RealClient {
   status: 'Novo' | 'Em análise' | 'Analisado' | 'Alta prioridade' | 'Cliente' | 'Prospect' | 'Inativo';
   lastAnalysis: string;
   lastUpload: string;
+  id_radar?: string;
+  id_erp?: string;
+  statusConta?: 'Prospect Radar' | 'Cliente Convertido' | 'Cliente Base';
 }
 
 export interface RealCardapioItem {
@@ -273,8 +276,8 @@ const RAW_PRODUCTS_DATA = [
   { brand: 'Latteria Sorrentina', category: 'Provola', sku: '98', name: 'Provola Affumicata Bola', priceLocal: 21.00, priceInter: 24.60, unit: 'UN', weight: '250g', isPremium: true },
   { brand: 'Latteria Sorrentina', category: 'Provola', sku: '81', name: 'Provola Affumicata Bolinha', priceLocal: 22.50, priceInter: 26.40, unit: 'UN', weight: '250g', isPremium: true },
   { brand: 'Latteria Sorrentina', category: 'Burrata', sku: '83', name: 'Burrata Individual', priceLocal: 18.00, priceInter: 21.15, unit: 'UN', weight: '125g', isPremium: true },
-  { brand: 'Latteria Sorrentina', category: 'Burrata', sku: 'N/D', name: 'Burrata Dupla', priceLocal: 29.00, priceInter: 34.00, unit: 'UN', weight: '250g', isPremium: true },
-  { brand: 'Latteria Sorrentina', category: 'Burrata', sku: 'N/D', name: 'Stracciatella', priceLocal: 26.00, priceInter: 30.50, unit: 'UN', weight: '250g', isPremium: true },
+  { brand: 'Latteria Sorrentina', category: 'Burrata', sku: '84', name: 'Burrata Dupla', priceLocal: 29.00, priceInter: 34.00, unit: 'UN', weight: '250g', isPremium: true },
+  { brand: 'Latteria Sorrentina', category: 'Burrata', sku: '85', name: 'Stracciatella', priceLocal: 26.00, priceInter: 30.50, unit: 'UN', weight: '250g', isPremium: true },
 
   // MURAGLIA
   { brand: 'Muraglia', category: 'Azeites Extra Virgem Premium', sku: '314', name: 'Fruttato Intenso (Coratina) 250ml', priceLocal: 49.00, priceInter: 57.50, unit: 'UN', weight: '250ml', isPremium: true },
@@ -282,9 +285,9 @@ const RAW_PRODUCTS_DATA = [
   { brand: 'Muraglia', category: 'Azeites Extra Virgem Premium', sku: '315', name: 'Fruttato Medio (Peranzana)', priceLocal: 82.00, priceInter: 96.35, unit: 'UN', weight: '500ml', isPremium: true },
   { brand: 'Muraglia', category: 'Azeites Extra Virgem Premium', sku: '316', name: 'Denocciolato', priceLocal: 95.00, priceInter: 111.00, unit: 'UN', weight: '500ml', isPremium: true },
   { brand: 'Muraglia', category: 'Azeites Decorados', sku: '282', name: 'Arcobaleno', priceLocal: 145.00, priceInter: 170.00, unit: 'UN', weight: '500ml', isPremium: true },
-  { brand: 'Muraglia', category: 'Azeites Decorados', sku: 'N/D', name: 'Arcobaleno (6 unidades)', priceLocal: 790.00, priceInter: 928.00, unit: 'UN', weight: '6x500ml', isPremium: true },
-  { brand: 'Muraglia', category: 'Azeites Decorados', sku: 'N/D', name: 'Sardina', priceLocal: 145.00, priceInter: 170.00, unit: 'UN', weight: '500ml', isPremium: true },
-  { brand: 'Muraglia', category: 'Azeites Decorados', sku: 'N/D', name: 'Polpo', priceLocal: 145.00, priceInter: 170.00, unit: 'UN', weight: '500ml', isPremium: true },
+  { brand: 'Muraglia', category: 'Azeites Decorados', sku: '283', name: 'Arcobaleno (6 unidades)', priceLocal: 790.00, priceInter: 928.00, unit: 'UN', weight: '6x500ml', isPremium: true },
+  { brand: 'Muraglia', category: 'Azeites Decorados', sku: '284', name: 'Sardina', priceLocal: 145.00, priceInter: 170.00, unit: 'UN', weight: '500ml', isPremium: true },
+  { brand: 'Muraglia', category: 'Azeites Decorados', sku: '285', name: 'Polpo', priceLocal: 145.00, priceInter: 170.00, unit: 'UN', weight: '500ml', isPremium: true },
 
   // URBANI
   { brand: 'Urbani', category: 'Funghi Secchi', sku: '61131', name: 'Funghi Porcini Seco 50g', priceLocal: 35.00, priceInter: 41.10, unit: 'UN', weight: '50g', isPremium: true },
@@ -425,7 +428,10 @@ export const REAL_CLIENTS: RealClient[] = [
     potential: 'Muito Alto',
     status: 'Analisado',
     lastAnalysis: '07/07/2026',
-    lastUpload: 'babbo_osteria_antipasti.pdf'
+    lastUpload: 'babbo_osteria_antipasti.pdf',
+    id_radar: 'RAD-001',
+    id_erp: 'ERP-9875',
+    statusConta: 'Cliente Convertido'
   },
   {
     id: 2,
@@ -446,7 +452,32 @@ export const REAL_CLIENTS: RealClient[] = [
     potential: 'Muito Alto',
     status: 'Analisado',
     lastAnalysis: '07/07/2026',
-    lastUpload: 'eva_pizzaria_menu.pdf'
+    lastUpload: 'eva_pizzaria_menu.pdf',
+    id_erp: 'ERP-1234',
+    statusConta: 'Cliente Base'
+  },
+  {
+    id: 3,
+    name: 'Gero Ipanema',
+    fantasyName: 'Gero Ipanema',
+    city: 'Rio de Janeiro',
+    state: 'RJ',
+    segment: 'Restaurante Italiano',
+    category: 'Azeites, Tomates e Grãos',
+    instagram: '@geroipanema',
+    website: 'www.fasano.com.br/gastronomia/gero-rio',
+    phone: '(21) 2239-8158',
+    email: 'gero.ipanema@fasano.com.br',
+    responsible: 'Rogério Fasano',
+    responsibleRole: 'Sócio-Diretor',
+    observations: 'Excelente restaurante italiano do Grupo Fasano. Identificado pelo Radar como alta oportunidade para massas premium e azeites.',
+    score: 88,
+    potential: 'Alto',
+    status: 'Novo',
+    lastAnalysis: '08/07/2026',
+    lastUpload: 'gero_menu_v1.pdf',
+    id_radar: 'RAD-002',
+    statusConta: 'Prospect Radar'
   }
 ];
 

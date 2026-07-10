@@ -15,10 +15,12 @@ import Breadcrumb, { BreadcrumbItem } from '../components/ui/Breadcrumb';
 
 // Import newly created modular components
 import RoleBadge, { UserRole } from '../components/shared/RoleBadge';
-import PermissionMatrix, { getStoredProfiles, AccessProfile } from '../components/shared/PermissionMatrix';
+import PermissionMatrix from '../components/shared/PermissionMatrix';
 import ActivityTimeline, { TimelineItem } from '../components/shared/ActivityTimeline';
 import TeamCard, { Team, defaultTeams } from '../components/shared/TeamCard';
-import UserCard, { UserDetail } from '../components/shared/UserCard';
+import UserCard from '../components/shared/UserCard';
+import { useSecurity } from '../hooks/useSecurity';
+import { SecurityService, UserDetail, AccessProfile } from '../services/securityService';
 
 import {
   Users,
@@ -51,160 +53,28 @@ import {
   Plus
 } from 'lucide-react';
 
-// --- INITIAL MOCK DATA FOR USERS ---
-const initialUsers: UserDetail[] = [
-  {
-    id: 'usr-1',
-    name: 'Marcelo',
-    lastName: 'Baquero',
-    email: 'marcelobbaquero@gmail.com',
-    phone: '(11) 98765-4321',
-    role: 'Administrador',
-    department: 'Diretoria',
-    position: 'Diretor Comercial',
-    team: 'Equipe Premium',
-    status: 'Ativo',
-    lastAccess: 'Hoje, 11:20',
-    observations: 'Responsável pela aprovação de budgets corporativos e calibração final do Radar CTrade.',
-    creationDate: '2026-01-10',
-  },
-  {
-    id: 'usr-2',
-    name: 'Mariana',
-    lastName: 'Costa',
-    email: 'mariana.costa@ctrade.com.br',
-    phone: '(21) 97120-1144',
-    role: 'Supervisor',
-    department: 'Vendas',
-    position: 'Gerente Comercial RJ',
-    team: 'Equipe Comercial RJ',
-    status: 'Ativo',
-    lastAccess: 'Hoje, 10:45',
-    observations: 'Supervisora da operação comercial fluminense e validadora de táticas de objeção.',
-    creationDate: '2026-02-15',
-  },
-  {
-    id: 'usr-3',
-    name: 'Roberto',
-    lastName: 'Alencar',
-    email: 'roberto.alencar@ctrade.com.br',
-    phone: '(11) 96412-2200',
-    role: 'Supervisor',
-    department: 'Vendas',
-    position: 'Gerente Comercial SP',
-    team: 'Equipe Comercial SP',
-    status: 'Ativo',
-    lastAccess: 'Ontem, 16:34',
-    observations: 'Gestor da equipe de São Paulo com foco em Pizzarias Premium e Trattorias.',
-    creationDate: '2026-02-18',
-  },
-  {
-    id: 'usr-4',
-    name: 'Arthur',
-    lastName: 'Mendes',
-    email: 'arthur.mendes@ctrade.com.br',
-    phone: '(21) 98212-3456',
-    role: 'Comercial',
-    department: 'Vendas',
-    position: 'Consultor Comercial',
-    team: 'Equipe Comercial RJ',
-    status: 'Ativo',
-    lastAccess: 'Hoje, 09:12',
-    observations: 'Foco em captação ativa de restaurantes no Leblon e Ipanema.',
-    creationDate: '2026-07-06',
-  },
-  {
-    id: 'usr-5',
-    name: 'Paula',
-    lastName: 'Teixeira',
-    email: 'paula.teixeira@ctrade.com.br',
-    phone: '(11) 99123-4567',
-    role: 'Inteligência Comercial',
-    department: 'Operações',
-    position: 'Analista de Negócios',
-    team: 'Equipe Premium',
-    status: 'Ativo',
-    lastAccess: 'Ontem, 11:15',
-    observations: 'Mapeamento estratégico e calibração matemática das equações do score.',
-    creationDate: '2026-03-01',
-  },
-  {
-    id: 'usr-6',
-    name: 'Gabriel',
-    lastName: 'Ferreira',
-    email: 'gabriel.ferreira@ctrade.com.br',
-    phone: '(11) 97412-8899',
-    role: 'Comercial',
-    department: 'Vendas',
-    position: 'Executivo de Contas',
-    team: 'Equipe Comercial SP',
-    status: 'Ativo',
-    lastAccess: '05 Jul, 14:15',
-    observations: 'Atende região da Paulista, Jardins e Pinheiros.',
-    creationDate: '2026-03-12',
-  },
-  {
-    id: 'usr-7',
-    name: 'Camila',
-    lastName: 'Peixoto',
-    email: 'camila.peixoto@ctrade.com.br',
-    phone: '(11) 98144-1234',
-    role: 'Supervisor',
-    department: 'Vendas',
-    position: 'Gerente Food Service',
-    team: 'Equipe Food Service',
-    status: 'Ativo',
-    lastAccess: 'Hoje, 08:30',
-    observations: 'Atendimento corporativo a grandes redes de hotéis e franquias.',
-    creationDate: '2026-03-20',
-  },
-  {
-    id: 'usr-8',
-    name: 'Rodrigo',
-    lastName: 'Oliveira',
-    email: 'rodrigo.oliveira@ctrade.com.br',
-    phone: '(11) 96322-1111',
-    role: 'Consulta',
-    department: 'Financeiro',
-    position: 'Controller Sênior',
-    team: 'Equipe Food Service',
-    status: 'Pendente',
-    lastAccess: 'Nunca acessou',
-    observations: 'Acesso de leitura para relatórios e faturamentos previstos.',
-    creationDate: '2026-07-01',
-  },
-  {
-    id: 'usr-9',
-    name: 'Larissa',
-    lastName: 'Moura',
-    email: 'larissa.moura@ctrade.com.br',
-    phone: '(21) 99120-7766',
-    role: 'Comercial',
-    department: 'Vendas',
-    position: 'Consultor de Contas',
-    team: 'Equipe Comercial RJ',
-    status: 'Inativo',
-    lastAccess: '12 Jun, 10:20',
-    observations: 'Operação Barra da Tijuca. Atualmente em licença médica.',
-    creationDate: '2026-04-05',
-  }
-];
-
 export default function Usuarios() {
+  const { profiles, users: globalUsers, logs, addLog, realUser, activeRole } = useSecurity();
+
   // Navigation tabs for the dashboard sub-areas
   const [activeSubTab, setActiveSubTab] = useState<'usuarios' | 'equipes' | 'permissoes' | 'timeline'>('usuarios');
 
-  // Dynamic profiles loaded from LocalStorage (or system defaults)
+  // Dynamic profiles loaded from SecurityService
   const [dynamicProfiles, setDynamicProfiles] = useState<AccessProfile[]>([]);
 
   React.useEffect(() => {
-    setDynamicProfiles(getStoredProfiles());
-  }, []);
+    setDynamicProfiles(SecurityService.getProfiles());
+  }, [profiles]);
 
   // Interactive state
-  const [users, setUsers] = useState<UserDetail[]>(initialUsers);
+  const [users, setUsers] = useState<UserDetail[]>(() => SecurityService.getUsers());
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [toast, setToast] = useState<{ message: string; description: string; type: 'success' | 'info' | 'warning' | 'error' } | null>(null);
+
+  // Sync users list with useSecurity reactive updates
+  React.useEffect(() => {
+    setUsers(globalUsers);
+  }, [globalUsers]);
 
   // Modal & Drawer toggles
   const [isNewUserModalOpen, setIsNewUserModalOpen] = useState(false);
@@ -226,14 +96,15 @@ export default function Usuarios() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(5);
 
-  // Form state for Modal Novo Usuário
+  // Form state for Modal Novo/Editar Usuário
   const [formName, setFormName] = useState('');
   const [formLastName, setFormLastName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formPosition, setFormPosition] = useState('');
   const [formDept, setFormDept] = useState('');
-  const [formRole, setFormRole] = useState<UserRole>('Comercial');
+  const [formRole, setFormRole] = useState<string>('RCA / Comercial');
+  const [formStatus, setFormStatus] = useState<'Ativo' | 'Inativo' | 'Bloqueado' | 'Suspenso' | 'Convite Pendente'>('Ativo');
   const [formTeam, setFormTeam] = useState('Equipe Comercial RJ');
   const [formObservations, setFormObservations] = useState('');
 
@@ -338,24 +209,64 @@ export default function Usuarios() {
       return;
     }
 
-    const newUser: UserDetail = {
-      id: `usr-${Date.now()}`,
-      name: formName,
-      lastName: formLastName,
-      email: formEmail,
-      phone: formPhone || '(11) 99999-9999',
-      role: formRole,
-      department: formDept,
-      position: formPosition,
-      team: formTeam,
-      status: 'Pendente', // Defaults to pendente until registration is complete
-      lastAccess: 'Nunca acessou',
-      observations: formObservations,
-      creationDate: new Date().toISOString().split('T')[0],
-    };
+    let updatedUsers: UserDetail[] = [];
 
-    setUsers([newUser, ...users]);
+    if (selectedUser && users.some(u => u.id === selectedUser.id)) {
+      // Editing existing user
+      updatedUsers = users.map(u => {
+        if (u.id === selectedUser.id) {
+          return {
+            ...u,
+            name: formName,
+            lastName: formLastName,
+            email: formEmail,
+            phone: formPhone || '(11) 99999-9999',
+            role: formRole,
+            department: formDept,
+            position: formPosition,
+            team: formTeam,
+            status: formStatus,
+            observations: formObservations,
+          };
+        }
+        return u;
+      });
+      triggerToast('success', 'Cadastro Atualizado', `${formName} foi atualizado com sucesso.`);
+      SecurityService.logAction({
+        module: 'Usuários',
+        action: `Editar Usuário: ${formName} ${formLastName}`,
+        result: 'Sucesso'
+      });
+    } else {
+      // Creating new user
+      const newUser: UserDetail = {
+        id: `usr-${Date.now()}`,
+        name: formName,
+        lastName: formLastName,
+        email: formEmail,
+        phone: formPhone || '(11) 99999-9999',
+        role: formRole,
+        department: formDept,
+        position: formPosition,
+        team: formTeam,
+        status: 'Convite Pendente', // Defaults to invitation pending as requested
+        lastAccess: 'Nunca acessou',
+        observations: formObservations,
+        creationDate: new Date().toISOString().split('T')[0],
+        createdBy: realUser ? `${realUser.name} ${realUser.lastName}` : 'Administrador',
+      };
+      updatedUsers = [newUser, ...users];
+      triggerToast('success', 'Convite Enviado', `Um convite foi enviado para ${newUser.name} com perfil de ${newUser.role}.`);
+      SecurityService.logAction({
+        module: 'Usuários',
+        action: `Criar Usuário: ${newUser.name} ${newUser.lastName}`,
+        result: 'Sucesso'
+      });
+    }
+
+    SecurityService.saveUsers(updatedUsers);
     setIsNewUserModalOpen(false);
+    setSelectedUser(null);
 
     // Reset Form
     setFormName('');
@@ -364,39 +275,92 @@ export default function Usuarios() {
     setFormPhone('');
     setFormPosition('');
     setFormDept('');
-    setFormRole('Comercial');
+    setFormRole('RCA / Comercial');
+    setFormStatus('Ativo');
     setFormTeam('Equipe Comercial RJ');
     setFormObservations('');
-
-    triggerToast('success', 'Usuário Criado', `${newUser.name} foi adicionado à equipe comercial com perfil de ${newUser.role}.`);
   };
 
   // Delete handler
   const handleDeleteUser = (id: string, name: string) => {
-    setUsers(users.filter(u => u.id !== id));
+    // Safeguard: do not let delete oneself
+    if (id === 'usr-1') {
+      triggerToast('error', 'Ação Proibida', 'Você não pode excluir a si mesmo.');
+      return;
+    }
+
+    const updatedUsers = users.filter(u => u.id !== id);
+    SecurityService.saveUsers(updatedUsers);
+    
     triggerToast('warning', 'Usuário Removido', `O cadastro de ${name} foi removido com sucesso.`);
+    SecurityService.logAction({
+      module: 'Usuários',
+      action: `Excluir Usuário: ${name}`,
+      result: 'Sucesso'
+    });
+
     if (selectedUser?.id === id) {
       setSelectedUser(null);
       setIsDetailDrawerOpen(false);
     }
   };
 
-  // Status toggle handler
+  // Status toggle handler cycling through Ativo, Inativo, Bloqueado, Suspenso, Convite Pendente
   const handleToggleStatus = (id: string) => {
-    setUsers(users.map(u => {
+    const statusCycle: UserDetail['status'][] = ['Ativo', 'Inativo', 'Bloqueado', 'Suspenso', 'Convite Pendente'];
+    
+    const updatedUsers = users.map(u => {
       if (u.id === id) {
-        const nextStatus: UserDetail['status'] = u.status === 'Ativo' ? 'Inativo' : u.status === 'Inativo' ? 'Pendente' : 'Ativo';
+        const currentIndex = statusCycle.indexOf(u.status);
+        const nextStatus = statusCycle[(currentIndex + 1) % statusCycle.length];
+        
         triggerToast('info', 'Status Alterado', `O status de ${u.name} agora é "${nextStatus}".`);
+        SecurityService.logAction({
+          module: 'Usuários',
+          action: `Alterar Status: ${u.name} para ${nextStatus}`,
+          result: 'Sucesso'
+        });
         return { ...u, status: nextStatus };
       }
       return u;
-    }));
+    });
+
+    SecurityService.saveUsers(updatedUsers);
   };
 
   const handleOpenDetails = (user: UserDetail) => {
     setSelectedUser(user);
     setIsDetailDrawerOpen(true);
   };
+
+  const mappedTimelineItems: TimelineItem[] = useMemo(() => {
+    return logs.map(log => {
+      const isError = log.result === 'Bloqueado';
+      let type: TimelineItem['type'] = 'access';
+      if (isError) {
+        type = 'security';
+      } else if (log.action.includes('Criar') || log.action.includes('Novo')) {
+        type = 'create';
+      } else if (log.action.includes('Editar') || log.action.includes('Alterar') || log.action.includes('Atualizar')) {
+        type = 'edit';
+      } else if (log.action.includes('Exportar')) {
+        type = 'export';
+      } else if (log.result === 'Sucesso') {
+        type = 'success';
+      }
+
+      const formattedTime = new Date(log.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' - ' + new Date(log.date).toLocaleDateString('pt-BR');
+
+      return {
+        id: log.id,
+        type,
+        user: { name: log.user },
+        description: `${log.action} [${log.module}]`,
+        target: log.result,
+        timestamp: formattedTime,
+      };
+    });
+  }, [logs]);
 
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Usuários', active: true }
@@ -755,12 +719,17 @@ export default function Usuarios() {
                             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
                               row.status === 'Ativo' ? 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100' :
                               row.status === 'Inativo' ? 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200' :
-                              'bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100'
+                              row.status === 'Bloqueado' ? 'bg-rose-50 text-rose-700 border-rose-100 hover:bg-rose-100' :
+                              row.status === 'Suspenso' ? 'bg-amber-50 text-amber-700 border-amber-100 hover:bg-amber-100' :
+                              'bg-indigo-50 text-indigo-700 border-indigo-100 hover:bg-indigo-100'
                             }`}
                           >
                             <span className={`h-1.5 w-1.5 rounded-full ${
                               row.status === 'Ativo' ? 'bg-emerald-500' :
-                              row.status === 'Inativo' ? 'bg-slate-400' : 'bg-amber-500 animate-pulse'
+                              row.status === 'Inativo' ? 'bg-slate-400' :
+                              row.status === 'Bloqueado' ? 'bg-rose-500' :
+                              row.status === 'Suspenso' ? 'bg-amber-500' :
+                              'bg-indigo-500 animate-pulse'
                             }`} />
                             {row.status}
                           </span>
@@ -792,6 +761,7 @@ export default function Usuarios() {
                                 setFormDept(row.department);
                                 setFormRole(row.role);
                                 setFormTeam(row.team);
+                                setFormStatus(row.status);
                                 setFormObservations(row.observations || '');
                                 setIsNewUserModalOpen(true);
                               }}
@@ -940,9 +910,9 @@ export default function Usuarios() {
 
             {/* Matrix Wrapper with interactive toggle */}
             <PermissionMatrix 
-              initialRole="Comercial" 
+              initialRole="RCA / Comercial" 
               readOnly={false} 
-              onProfilesUpdated={() => setDynamicProfiles(getStoredProfiles())} 
+              onProfilesUpdated={() => setDynamicProfiles(SecurityService.getProfiles())} 
             />
           </div>
         </div>
@@ -953,7 +923,7 @@ export default function Usuarios() {
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-2xs">
             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6">Linha do Tempo de Atividades</h3>
-            <ActivityTimeline maxItems={8} />
+            <ActivityTimeline items={mappedTimelineItems} maxItems={15} />
           </div>
         </div>
       )}
@@ -1033,7 +1003,7 @@ export default function Usuarios() {
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Perfil de Acesso *</label>
               <select
                 value={formRole}
-                onChange={(e) => setFormRole(e.target.value as UserRole)}
+                onChange={(e) => setFormRole(e.target.value)}
                 className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white py-2 px-3 text-slate-700 focus:border-blue-600 focus:outline-hidden"
                 required
               >
@@ -1044,19 +1014,36 @@ export default function Usuarios() {
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Equipe Alocada *</label>
-            <select
-              value={formTeam}
-              onChange={(e) => setFormTeam(e.target.value)}
-              className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white py-2 px-3 text-slate-700 focus:border-blue-600 focus:outline-hidden"
-              required
-            >
-              <option value="Equipe Comercial RJ">Equipe Comercial RJ</option>
-              <option value="Equipe Comercial SP">Equipe Comercial SP</option>
-              <option value="Equipe Premium">Equipe Premium</option>
-              <option value="Equipe Food Service">Equipe Food Service</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Equipe Alocada *</label>
+              <select
+                value={formTeam}
+                onChange={(e) => setFormTeam(e.target.value)}
+                className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white py-2 px-3 text-slate-700 focus:border-blue-600 focus:outline-hidden"
+                required
+              >
+                <option value="Equipe Comercial RJ">Equipe Comercial RJ</option>
+                <option value="Equipe Comercial SP">Equipe Comercial SP</option>
+                <option value="Equipe Premium">Equipe Premium</option>
+                <option value="Equipe Food Service">Equipe Food Service</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status do Cadastro *</label>
+              <select
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value as any)}
+                className="w-full text-xs font-semibold rounded-xl border border-slate-200 bg-white py-2 px-3 text-slate-700 focus:border-blue-600 focus:outline-hidden"
+                required
+              >
+                <option value="Ativo">Ativo</option>
+                <option value="Inativo">Inativo</option>
+                <option value="Bloqueado">Bloqueado</option>
+                <option value="Suspenso">Suspenso</option>
+                <option value="Convite Pendente">Convite Pendente</option>
+              </select>
+            </div>
           </div>
 
           <div className="space-y-1">

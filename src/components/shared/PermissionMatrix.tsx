@@ -18,133 +18,22 @@ import {
   Save, 
   RotateCcw, 
   AlertCircle,
-  AlertTriangle,
+  HelpCircle,
   Settings,
-  HelpCircle
+  Users,
+  Briefcase,
+  Target,
+  Brain,
+  Library,
+  Package,
+  FileText,
+  Home,
+  RefreshCw,
+  Clock,
+  Play
 } from 'lucide-react';
-
-export interface AccessProfile {
-  id: string;
-  name: string;
-  description: string;
-  active: boolean;
-  isSystem?: boolean;
-  permissions: Record<string, 'Nenhum' | 'Visualizar' | 'Editar' | 'Administrar'>;
-}
-
-export const defaultProfiles: AccessProfile[] = [
-  {
-    id: 'profile-admin',
-    name: 'Administrador',
-    description: 'Acesso total irrestrito a todas as funcionalidades da plataforma, relatórios estratégicos e configurações de segurança e chaves de API.',
-    active: true,
-    isSystem: true,
-    permissions: {
-      'Visão Geral': 'Administrar',
-      'Radar Comercial': 'Administrar',
-      'Base Comercial': 'Administrar',
-      'Inteligência Comercial': 'Administrar',
-      'Portfólio CTrade': 'Administrar',
-      'Relatórios': 'Administrar',
-      'Central de Inteligência': 'Administrar',
-    }
-  },
-  {
-    id: 'profile-supervisor',
-    name: 'Supervisor',
-    description: 'Gestor regional responsável por analisar a performance de equipes comerciais, validar leads capturados, e exportar relatórios avançados de conversão.',
-    active: true,
-    isSystem: true,
-    permissions: {
-      'Visão Geral': 'Administrar',
-      'Radar Comercial': 'Editar',
-      'Base Comercial': 'Editar',
-      'Inteligência Comercial': 'Editar',
-      'Portfólio CTrade': 'Editar',
-      'Relatórios': 'Administrar',
-      'Central de Inteligência': 'Visualizar',
-    }
-  },
-  {
-    id: 'profile-inteligencia',
-    name: 'Inteligência Comercial',
-    description: 'Analista estratégico focado em calibrar equações de score, auditar enriquecimentos de cardápio via IA e alimentar os relatórios de conversão.',
-    active: true,
-    isSystem: true,
-    permissions: {
-      'Visão Geral': 'Editar',
-      'Radar Comercial': 'Editar',
-      'Base Comercial': 'Visualizar',
-      'Inteligência Comercial': 'Administrar',
-      'Portfólio CTrade': 'Editar',
-      'Relatórios': 'Editar',
-      'Central de Inteligência': 'Visualizar',
-    }
-  },
-  {
-    id: 'profile-comercial',
-    name: 'Comercial',
-    description: 'Executivo ou consultor de vendas em campo focado na prospecção, atualização de leads próprios, agendamento de visitas e fechamento de contratos.',
-    active: true,
-    isSystem: true,
-    permissions: {
-      'Visão Geral': 'Visualizar',
-      'Radar Comercial': 'Visualizar',
-      'Base Comercial': 'Editar',
-      'Inteligência Comercial': 'Visualizar',
-      'Portfólio CTrade': 'Visualizar',
-      'Relatórios': 'Visualizar',
-      'Central de Inteligência': 'Nenhum',
-    }
-  },
-  {
-    id: 'profile-consulta',
-    name: 'Consulta',
-    description: 'Perfil de leitura passiva para visualização de relatórios gerenciais e acompanhamento de metas, sem permissão de alteração.',
-    active: true,
-    isSystem: true,
-    permissions: {
-      'Visão Geral': 'Visualizar',
-      'Radar Comercial': 'Visualizar',
-      'Base Comercial': 'Visualizar',
-      'Inteligência Comercial': 'Visualizar',
-      'Portfólio CTrade': 'Visualizar',
-      'Relatórios': 'Visualizar',
-      'Central de Inteligência': 'Nenhum',
-    }
-  }
-];
-
-const MODULES = [
-  { name: 'Visão Geral', description: 'Painel executivo com resumos de vendas e metas' },
-  { name: 'Radar Comercial', description: 'Mapeamento geográfico e listas frias de restaurantes' },
-  { name: 'Base Comercial', description: 'Visualização e gestão ativa de leads e carteira comercial' },
-  { name: 'Inteligência Comercial', description: 'Análise avançada de cardápios e enriquecimento via Gemini IA' },
-  { name: 'Portfólio CTrade', description: 'Gestão de catálogos e precificações de produtos' },
-  { name: 'Relatórios', description: 'Exportação avançada de conversões, histórico e performance' },
-  { name: 'Central de Inteligência', description: 'Calibração do score, prompts mestre e chaves de API' },
-];
-
-const STORAGE_KEY = 'ctrade_access_profiles';
-
-export const getStoredProfiles = (): AccessProfile[] => {
-  if (typeof window === 'undefined') return defaultProfiles;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      return defaultProfiles;
-    }
-  }
-  return defaultProfiles;
-};
-
-export const saveStoredProfiles = (profiles: AccessProfile[]) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-  }
-};
+import { SecurityService, AccessProfile, MODULES_ACTIONS } from '../../services/securityService';
+import { useSecurity } from '../../hooks/useSecurity';
 
 interface PermissionMatrixProps {
   initialRole?: string;
@@ -153,15 +42,14 @@ interface PermissionMatrixProps {
 }
 
 export default function PermissionMatrix({ initialRole, readOnly = false, onProfilesUpdated }: PermissionMatrixProps) {
-  // Profiles in state
-  const [profiles, setProfiles] = useState<AccessProfile[]>([]);
+  const { profiles, users, activeRole, startSimulation, simulatedRole, stopSimulation } = useSecurity();
   const [activeProfileId, setActiveProfileId] = useState<string>('profile-comercial');
   
   // Editing state
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [editPermissions, setEditPermissions] = useState<Record<string, 'Nenhum' | 'Visualizar' | 'Editar' | 'Administrar'>>({});
+  const [editPermissions, setEditPermissions] = useState<Record<string, Record<string, boolean>>>({});
 
   // Create new profile modal state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -172,25 +60,22 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
   // Success message feedback
   const [alert, setAlert] = useState<{ message: string; type: 'success' | 'warning' | 'info' } | null>(null);
 
-  // Load profiles from storage
+  // Choose initial profile
   useEffect(() => {
-    const loaded = getStoredProfiles();
-    setProfiles(loaded);
-    
-    // Choose active profile
-    if (initialRole) {
-      const match = loaded.find(p => p.name.toLowerCase() === initialRole.toLowerCase() || p.id === initialRole);
-      if (match) {
-        setActiveProfileId(match.id);
-      } else if (loaded.length > 0) {
-        setActiveProfileId(loaded[0].id);
+    if (profiles.length > 0) {
+      if (initialRole) {
+        const match = profiles.find(p => p.name.toLowerCase() === initialRole.toLowerCase() || p.id === initialRole);
+        if (match) {
+          setActiveProfileId(match.id);
+        } else {
+          setActiveProfileId(profiles[0].id);
+        }
+      } else {
+        const comercial = profiles.find(p => p.id === 'profile-comercial');
+        setActiveProfileId(comercial ? comercial.id : profiles[0].id);
       }
-    } else if (loaded.length > 0) {
-      // Default to comercial
-      const comercial = loaded.find(p => p.id === 'profile-comercial');
-      setActiveProfileId(comercial ? comercial.id : loaded[0].id);
     }
-  }, [initialRole]);
+  }, [profiles, initialRole]);
 
   const activeProfile = profiles.find(p => p.id === activeProfileId) || profiles[0];
 
@@ -211,7 +96,13 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
     if (!activeProfile) return;
     setEditName(activeProfile.name);
     setEditDescription(activeProfile.description);
-    setEditPermissions({ ...activeProfile.permissions });
+    
+    // Deep clone permissions
+    const clonedPerms: Record<string, Record<string, boolean>> = {};
+    Object.keys(MODULES_ACTIONS).forEach(module => {
+      clonedPerms[module] = { ...(activeProfile.permissions[module] || {}) };
+    });
+    setEditPermissions(clonedPerms);
     setIsEditing(true);
   };
 
@@ -235,10 +126,14 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
       return p;
     });
 
-    setProfiles(updated);
-    saveStoredProfiles(updated);
+    SecurityService.saveProfiles(updated);
     setIsEditing(false);
     triggerAlert('success', `Perfil "${editName}" atualizado com sucesso.`);
+    SecurityService.logAction({
+      module: 'Usuários',
+      action: 'Alterar Permissões',
+      result: 'Sucesso',
+    });
     if (onProfilesUpdated) onProfilesUpdated();
   };
 
@@ -249,20 +144,31 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
 
     const newId = `profile-custom-${Date.now()}`;
     const name = `${target.name} (Cópia)`;
+    
+    // Deep copy permissions
+    const clonedPerms: Record<string, Record<string, boolean>> = {};
+    Object.keys(MODULES_ACTIONS).forEach(module => {
+      clonedPerms[module] = { ...(target.permissions[module] || {}) };
+    });
+
     const duplicated: AccessProfile = {
       id: newId,
       name,
       description: `Cópia do perfil ${target.name}. ${target.description}`,
       active: true,
       isSystem: false,
-      permissions: { ...target.permissions }
+      permissions: clonedPerms
     };
 
     const updated = [...profiles, duplicated];
-    setProfiles(updated);
-    saveStoredProfiles(updated);
+    SecurityService.saveProfiles(updated);
     setActiveProfileId(newId);
     triggerAlert('success', `Perfil "${name}" criado por duplicação.`);
+    SecurityService.logAction({
+      module: 'Usuários',
+      action: 'Gerenciar Perfis',
+      result: 'Sucesso',
+    });
     if (onProfilesUpdated) onProfilesUpdated();
   };
 
@@ -275,6 +181,13 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
       return;
     }
 
+    // Safeguard: Check if in use before deactivating
+    const inUse = users.some(u => u.role === target.name && u.status === 'Ativo');
+    if (inUse) {
+      triggerAlert('warning', `Não é possível desativar o perfil "${target.name}" porque há usuários ativos associados a ele.`);
+      return;
+    }
+
     const nextStatus = !target.active;
     const updated = profiles.map(p => {
       if (p.id === id) {
@@ -283,9 +196,13 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
       return p;
     });
 
-    setProfiles(updated);
-    saveStoredProfiles(updated);
+    SecurityService.saveProfiles(updated);
     triggerAlert('info', `Perfil "${target.name}" foi ${nextStatus ? 'ativado' : 'desativado'}.`);
+    SecurityService.logAction({
+      module: 'Usuários',
+      action: 'Gerenciar Perfis',
+      result: 'Sucesso',
+    });
     if (onProfilesUpdated) onProfilesUpdated();
   };
 
@@ -298,9 +215,15 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
       return;
     }
 
+    // Safeguard check: do not delete profiles in use
+    const inUse = users.some(u => u.role === target.name);
+    if (inUse) {
+      triggerAlert('warning', `Não é possível excluir o perfil "${target.name}" porque ele possui usuários cadastrados.`);
+      return;
+    }
+
     const updated = profiles.filter(p => p.id !== id);
-    setProfiles(updated);
-    saveStoredProfiles(updated);
+    SecurityService.saveProfiles(updated);
     
     // Choose next active profile
     if (updated.length > 0) {
@@ -308,6 +231,11 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
     }
     
     triggerAlert('warning', `Perfil "${target.name}" excluído.`);
+    SecurityService.logAction({
+      module: 'Usuários',
+      action: 'Gerenciar Perfis',
+      result: 'Sucesso',
+    });
     if (onProfilesUpdated) onProfilesUpdated();
   };
 
@@ -316,7 +244,14 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
     e.preventDefault();
     if (!newName.trim()) return;
 
-    const template = profiles.find(p => p.id === newTemplateId) || defaultProfiles[3];
+    const template = profiles.find(p => p.id === newTemplateId) || profiles[0];
+    
+    // Deep clone template permissions
+    const clonedPerms: Record<string, Record<string, boolean>> = {};
+    Object.keys(MODULES_ACTIONS).forEach(module => {
+      clonedPerms[module] = { ...(template.permissions[module] || {}) };
+    });
+
     const newId = `profile-custom-${Date.now()}`;
     const created: AccessProfile = {
       id: newId,
@@ -324,12 +259,11 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
       description: newDescription || 'Perfil de acesso personalizado criado pelo administrador.',
       active: true,
       isSystem: false,
-      permissions: { ...template.permissions }
+      permissions: clonedPerms
     };
 
     const updated = [...profiles, created];
-    setProfiles(updated);
-    saveStoredProfiles(updated);
+    SecurityService.saveProfiles(updated);
     setActiveProfileId(newId);
     setIsCreateOpen(false);
     
@@ -338,62 +272,33 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
     setNewDescription('');
     
     triggerAlert('success', `Novo perfil "${newName}" criado com sucesso!`);
+    SecurityService.logAction({
+      module: 'Usuários',
+      action: 'Gerenciar Perfis',
+      result: 'Sucesso',
+    });
     if (onProfilesUpdated) onProfilesUpdated();
   };
 
-  const getLevelBadge = (level: 'Nenhum' | 'Visualizar' | 'Editar' | 'Administrar') => {
-    switch (level) {
-      case 'Administrar':
-        return (
-          <span className="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-red-100">
-            <ShieldAlert className="h-3 w-3" />
-            <span>Administrar</span>
-          </span>
-        );
-      case 'Editar':
-        return (
-          <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-blue-100">
-            <Edit2 className="h-3 w-3" />
-            <span>Editar</span>
-          </span>
-        );
-      case 'Visualizar':
-        return (
-          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold border border-emerald-100">
-            <Eye className="h-3 w-3" />
-            <span>Visualizar</span>
-          </span>
-        );
-      case 'Nenhum':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 bg-slate-50 text-slate-400 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-slate-100">
-            <X className="h-3 w-3" />
-            <span>Sem Acesso</span>
-          </span>
-        );
+  // Helper icons for modules
+  const getModuleIcon = (moduleName: string) => {
+    switch (moduleName) {
+      case 'Dashboard': return <Home className="h-4 w-4 text-blue-900" />;
+      case 'Radar Comercial': return <Target className="h-4 w-4 text-purple-700" />;
+      case 'Base de Clientes': return <Users className="h-4 w-4 text-emerald-700" />;
+      case 'Central de Cardápios': return <Library className="h-4 w-4 text-indigo-700" />;
+      case 'Catálogo de Produtos': return <Package className="h-4 w-4 text-amber-700" />;
+      case 'Central de Oportunidades': return <Briefcase className="h-4 w-4 text-blue-700" />;
+      case 'Relatórios': return <FileText className="h-4 w-4 text-slate-700" />;
+      case 'Usuários': return <Settings className="h-4 w-4 text-rose-700" />;
+      case 'Configurações': return <Settings className="h-4 w-4 text-indigo-900" />;
+      case 'Auditoria': return <Clock className="h-4 w-4 text-rose-900" />;
+      default: return <Shield className="h-4 w-4 text-slate-500" />;
     }
   };
 
-  const getIndicatorCell = (level: string, expected: 'Visualizar' | 'Editar' | 'Administrar') => {
-    const active = 
-      (expected === 'Visualizar' && level !== 'Nenhum') ||
-      (expected === 'Editar' && (level === 'Editar' || level === 'Administrar')) ||
-      (expected === 'Administrar' && level === 'Administrar');
-
-    return (
-      <div className="flex items-center justify-center">
-        {active ? (
-          <div className="h-5 w-5 rounded-full bg-blue-950/10 flex items-center justify-center text-blue-900 font-bold border border-blue-950/20 shadow-2xs">
-            <Check className="h-3.5 w-3.5 stroke-[2.5]" />
-          </div>
-        ) : (
-          <div className="h-5 w-5 rounded-full bg-slate-50 flex items-center justify-center text-slate-200 border border-slate-200/40">
-            <X className="h-3 w-3" />
-          </div>
-        )}
-      </div>
-    );
+  const getProfileUsersCount = (profileName: string) => {
+    return users.filter(u => u.role === profileName).length;
   };
 
   if (profiles.length === 0) return <div className="p-4 text-center text-xs text-slate-400">Carregando matriz de acesso...</div>;
@@ -433,12 +338,15 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
           <div className="bg-slate-50/50 rounded-2xl p-2 border border-slate-200/60 space-y-1">
             {profiles.map((p) => {
               const isSelected = p.id === activeProfileId;
+              const isSimulated = simulatedRole === p.name;
+              const count = getProfileUsersCount(p.name);
+
               return (
                 <div
                   key={p.id}
                   onClick={() => {
                     if (isEditing) {
-                      if (confirm('Você possui alterações não salvas. Deseja trocar de perfil assim mesmo?')) {
+                      if (window.confirm('Você possui alterações não salvas. Deseja trocar de perfil assim mesmo?')) {
                         setIsEditing(false);
                         setActiveProfileId(p.id);
                       }
@@ -446,9 +354,9 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                       setActiveProfileId(p.id);
                     }
                   }}
-                  className={`group relative p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  className={`group relative p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-blue-950 text-white border-blue-950 shadow-md'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-md'
                       : 'bg-white text-slate-700 border-slate-100 hover:border-slate-200 hover:shadow-xs'
                   }`}
                 >
@@ -467,15 +375,27 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                           Inativo
                         </span>
                       )}
+                      {isSimulated && (
+                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950">
+                          Simulado
+                        </span>
+                      )}
                     </div>
                   </div>
-                  <p className={`text-[10px] mt-1.5 line-clamp-2 leading-relaxed ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                  
+                  <p className={`text-[10px] mt-1.5 line-clamp-2 leading-relaxed ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
                     {p.description}
                   </p>
 
+                  <div className="flex justify-between items-center mt-3">
+                    <span className={`text-[9px] font-bold uppercase tracking-wide ${isSelected ? 'text-blue-300' : 'text-blue-600'}`}>
+                      {count} {count === 1 ? 'usuário' : 'usuários'}
+                    </span>
+                  </div>
+
                   {/* Desktop Quick Actions Layer (hidden on default view unless hovered) */}
                   {!readOnly && !isEditing && (
-                    <div className="absolute right-2 bottom-2 hidden group-hover:flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm transition-all text-slate-600">
+                    <div className="absolute right-2 bottom-2 hidden group-hover:flex items-center gap-1 bg-white p-1 rounded-lg border border-slate-200 shadow-sm transition-all text-slate-600 z-10">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -484,7 +404,7 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                         className="p-1 hover:text-blue-900 rounded-md hover:bg-slate-50"
                         title="Duplicar perfil de acesso"
                       >
-                        <Copy className="h-3 w-3" />
+                        <Copy className="h-3.5 w-3.5" />
                       </button>
                       {!p.isSystem && (
                         <>
@@ -494,21 +414,22 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                               handleToggleActive(p.id);
                             }}
                             className={`p-1 rounded-md hover:bg-slate-50 ${p.active ? 'hover:text-rose-600' : 'hover:text-emerald-600'}`}
-                            title={p.active ? "Desativar perfil comercial" : "Ativar perfil comercial"}
+                            title={p.active ? "Desativar perfil" : "Ativar perfil"}
                           >
-                            <Power className="h-3 w-3" />
+                            <Power className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (confirm(`Tem certeza que deseja excluir permanentemente o perfil "${p.name}"?`)) {
+                              if (window.confirm(`Tem certeza que deseja excluir permanentemente o perfil "${p.name}"?`)) {
                                 handleDeleteProfile(p.id);
                               }
                             }}
                             className="p-1 hover:text-red-700 rounded-md hover:bg-slate-50"
                             title="Excluir perfil"
+                            disabled={count > 0}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </>
                       )}
@@ -533,7 +454,7 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="text-sm font-black text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-1 focus:outline-hidden focus:border-blue-600"
+                      className="text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-1 focus:outline-hidden focus:border-blue-600"
                       placeholder="Nome do Perfil"
                     />
                   ) : (
@@ -569,6 +490,31 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                 {/* Profile Controls Header Action Buttons */}
                 {!readOnly && (
                   <div className="flex items-center gap-1.5 shrink-0">
+                    {/* SIMULATE PROFILE BUTTON - Administrators only */}
+                    {activeRole === 'Administrador' && !isEditing && (
+                      simulatedRole === activeProfile.name ? (
+                        <button
+                          onClick={stopSimulation}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-black text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-xl border border-amber-200 transition-all cursor-pointer shadow-2xs"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                          <span>Parar Simulação</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            startSimulation(activeProfile.name);
+                            triggerAlert('success', `Simulação ativada! Agora você está visualizando o sistema como "${activeProfile.name}".`);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-black text-white bg-amber-600 hover:bg-amber-700 rounded-xl border border-amber-600 transition-all cursor-pointer shadow-2xs"
+                          title="Visualizar a plataforma com este perfil"
+                        >
+                          <Play className="h-3.5 w-3.5 fill-white" />
+                          <span>Visualizar como...</span>
+                        </button>
+                      )
+                    )}
+
                     {isEditing ? (
                       <>
                         <button
@@ -583,7 +529,7 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                           className="flex items-center gap-1 px-3.5 py-1.5 text-xs font-bold text-white bg-blue-950 hover:bg-blue-900 rounded-xl border border-blue-950 shadow-xs transition-all cursor-pointer"
                         >
                           <Save className="h-4 w-4" />
-                          <span>Salvar Alterações</span>
+                          <span>Salvar</span>
                         </button>
                       </>
                     ) : (
@@ -593,7 +539,7 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                           className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 rounded-xl border border-slate-200/80 hover:border-slate-300 transition-all cursor-pointer"
                         >
                           <Edit2 className="h-4 w-4 text-slate-500" />
-                          <span>Editar Permissões</span>
+                          <span>Editar</span>
                         </button>
                         <button
                           onClick={() => handleDuplicateProfile(activeProfile.id)}
@@ -623,137 +569,76 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
             </div>
           )}
 
-          {/* Matrix table representation */}
-          <div className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-2xs">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-widest">Módulo</th>
-                  <th className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Visualizar</th>
-                  <th className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Editar</th>
-                  <th className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-widest text-center">Administrar</th>
-                  <th className="px-5 py-3 text-xs font-black text-slate-400 uppercase tracking-widest text-right">Nível de Acesso</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {MODULES.map((m, idx) => {
-                  const currentLevel = isEditing 
-                    ? editPermissions[m.name] || 'Nenhum'
-                    : (activeProfile?.permissions[m.name] || 'Nenhum');
+          {/* Granular Matrix of Actions by Module */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.keys(MODULES_ACTIONS).map((moduleName) => {
+              const actions = MODULES_ACTIONS[moduleName];
+              
+              return (
+                <div key={moduleName} className="bg-white border border-slate-100 rounded-2xl p-4 shadow-2xs hover:border-slate-200 transition-colors">
+                  <div className="flex items-center gap-2 border-b border-slate-50 pb-2 mb-3">
+                    {getModuleIcon(moduleName)}
+                    <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">{moduleName}</span>
+                  </div>
 
-                  return (
-                    <tr key={idx} className="hover:bg-slate-50/20 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <span className="text-xs font-bold text-slate-800 block">{m.name}</span>
-                        <span className="text-[10px] text-slate-400 block mt-0.5 leading-relaxed">{m.description}</span>
-                      </td>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {actions.map((actionName) => {
+                      const isAllowed = isEditing
+                        ? !!(editPermissions[moduleName] && editPermissions[moduleName][actionName])
+                        : !!(activeProfile?.permissions[moduleName] && activeProfile?.permissions[moduleName][actionName]);
 
-                      {/* View Indicator cell */}
-                      <td className="px-5 py-3.5">
-                        {isEditing ? (
-                          <div className="flex justify-center">
+                      return (
+                        <div key={actionName} className="flex items-center gap-2 py-1">
+                          {isEditing ? (
                             <input
                               type="checkbox"
-                              checked={currentLevel !== 'Nenhum'}
+                              checked={isAllowed}
+                              id={`chk-${moduleName}-${actionName}`}
                               onChange={(e) => {
                                 const checked = e.target.checked;
                                 setEditPermissions({
                                   ...editPermissions,
-                                  [m.name]: checked 
-                                    ? (currentLevel === 'Nenhum' ? 'Visualizar' : currentLevel) 
-                                    : 'Nenhum'
+                                  [moduleName]: {
+                                    ...(editPermissions[moduleName] || {}),
+                                    [actionName]: checked
+                                  }
                                 });
                               }}
-                              className="h-4.5 w-4.5 text-blue-900 border-slate-200 rounded-md cursor-pointer"
+                              className="h-4 w-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900 cursor-pointer"
                             />
-                          </div>
-                        ) : (
-                          getIndicatorCell(currentLevel, 'Visualizar')
-                        )}
-                      </td>
-
-                      {/* Edit Indicator cell */}
-                      <td className="px-5 py-3.5">
-                        {isEditing ? (
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={currentLevel === 'Editar' || currentLevel === 'Administrar'}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setEditPermissions({
-                                  ...editPermissions,
-                                  [m.name]: checked ? 'Editar' : 'Visualizar'
-                                });
-                              }}
-                              disabled={currentLevel === 'Nenhum'}
-                              className="h-4.5 w-4.5 text-blue-900 border-slate-200 rounded-md cursor-pointer disabled:opacity-40"
-                            />
-                          </div>
-                        ) : (
-                          getIndicatorCell(currentLevel, 'Editar')
-                        )}
-                      </td>
-
-                      {/* Admin Indicator cell */}
-                      <td className="px-5 py-3.5">
-                        {isEditing ? (
-                          <div className="flex justify-center">
-                            <input
-                              type="checkbox"
-                              checked={currentLevel === 'Administrar'}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                setEditPermissions({
-                                  ...editPermissions,
-                                  [m.name]: checked ? 'Administrar' : 'Editar'
-                                });
-                              }}
-                              disabled={currentLevel === 'Nenhum' || currentLevel === 'Visualizar'}
-                              className="h-4.5 w-4.5 text-blue-900 border-slate-200 rounded-md cursor-pointer disabled:opacity-40"
-                            />
-                          </div>
-                        ) : (
-                          getIndicatorCell(currentLevel, 'Administrar')
-                        )}
-                      </td>
-
-                      {/* Access level badge select */}
-                      <td className="px-5 py-3.5 text-right">
-                        {isEditing ? (
-                          <select
-                            value={currentLevel}
-                            onChange={(e) => {
-                              setEditPermissions({
-                                ...editPermissions,
-                                [m.name]: e.target.value as any
-                              });
-                            }}
-                            className="text-[11px] font-bold rounded-lg border border-slate-200 bg-white py-1 px-2 text-slate-700 focus:outline-hidden"
+                          ) : (
+                            <div className={`h-4.5 w-4.5 rounded-md flex items-center justify-center shrink-0 border transition-all ${
+                              isAllowed 
+                                ? 'bg-emerald-500 border-emerald-500 text-white' 
+                                : 'bg-slate-50 border-slate-200 text-slate-300'
+                            }`}>
+                              {isAllowed ? <Check className="h-3 w-3 stroke-[3]" /> : <X className="h-2.5 w-2.5" />}
+                            </div>
+                          )}
+                          <label 
+                            htmlFor={`chk-${moduleName}-${actionName}`}
+                            className={`text-xs select-none cursor-pointer ${
+                              isAllowed ? 'font-bold text-slate-800' : 'text-slate-400 font-medium'
+                            }`}
                           >
-                            <option value="Nenhum">Sem Acesso</option>
-                            <option value="Visualizar">Visualizar</option>
-                            <option value="Editar">Editar</option>
-                            <option value="Administrar">Administrar</option>
-                          </select>
-                        ) : (
-                          getLevelBadge(currentLevel)
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                            {actionName}
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Alert Note Info card */}
-          <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50 flex gap-3 items-start">
-            <HelpCircle className="h-4.5 w-4.5 text-blue-900 shrink-0 mt-0.5" />
+          <div className="p-4.5 bg-blue-50/50 rounded-2xl border border-blue-100/50 flex gap-3.5 items-start">
+            <HelpCircle className="h-5 w-5 text-blue-900 shrink-0 mt-0.5" />
             <div className="space-y-0.5">
               <span className="text-[10px] font-extrabold uppercase tracking-wide text-blue-900 block">Arquitetura de Segurança Habilitada</span>
-              <p className="text-[10px] text-slate-500 leading-relaxed">
-                As alterações na matriz cognitiva de acessos de um perfil são propagadas em tempo real para todos os usuários que herdam o papel selecionado. Perfis marcados com a tag <strong className="font-bold text-slate-600">Nativo</strong> são estruturais do core business e possuem salvaguardas de exclusão.
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                As alterações na matriz de ações deste perfil são herdadas automaticamente por todos os usuários atribuídos a ele. Perfis marcados com a tag <strong className="font-bold text-slate-600">Nativo</strong> são estruturais e possuem salvaguardas de exclusão.
               </p>
             </div>
           </div>
@@ -788,7 +673,7 @@ export default function PermissionMatrix({ initialRole, readOnly = false, onProf
                   required
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Ex: Consultor Externo, Auditor de IA"
+                  placeholder="Ex: Gestor Regional, Representante"
                   className="w-full text-xs font-bold rounded-xl border border-slate-200 bg-white py-2 px-3 text-slate-800 placeholder:text-slate-400 focus:border-blue-600 focus:outline-hidden"
                 />
               </div>

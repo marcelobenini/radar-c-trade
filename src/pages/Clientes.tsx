@@ -16,6 +16,7 @@ import DataTable, { Column } from '../components/ui/Table';
 import ScoreIndicator from '../components/ui/Score';
 import FitComercial, { FitHistoryItem } from '../components/ui/FitComercial';
 import Breadcrumb, { BreadcrumbItem } from '../components/ui/Breadcrumb';
+import WorkspaceComercial from '../components/WorkspaceComercial';
 import { REAL_CLIENTS, REAL_PRODUCTS, REAL_OPPORTUNITIES } from '../data/realData';
 import GlobalFilters, { matchesScoreRange } from '../components/shared/GlobalFilters';
 import { syncPlatformData } from '../utils/platformSync';
@@ -174,6 +175,12 @@ export interface Client {
 export type Conta = Client; // Name alias to preserve internal architecture as Conta
 export const ERP_ID_FIELD_NAME = 'id_erp'; // Configurable constant for potential ERP field renames
 
+export function deriveStatusConta(id_radar?: string, id_erp?: string): 'Prospect Radar' | 'Cliente Convertido' | 'Cliente Base' {
+  if (id_radar && id_erp) return 'Cliente Convertido';
+  if (id_erp) return 'Cliente Base';
+  return 'Prospect Radar';
+}
+
 export function isValidPhone(phone: string | null | undefined): boolean {
   if (!phone) return false;
   const digits = phone.replace(/\D/g, '');
@@ -305,7 +312,7 @@ export default function Clientes() {
       historicoCompleto: defaultHistory,
       id_radar: rc.id_radar,
       id_erp: rc.id_erp,
-      statusConta: rc.statusConta || 'Prospect Radar'
+      statusConta: rc.statusConta || deriveStatusConta(rc.id_radar, rc.id_erp)
     };
   });
 
@@ -347,7 +354,6 @@ export default function Clientes() {
         const parsedId = parseInt(targetId, 10);
         if (!isNaN(parsedId)) {
           setSelectedClientId(parsedId);
-          setIsModalOpen(true);
           localStorage.removeItem('ctrade_selected_client_id');
         }
       }
@@ -358,7 +364,6 @@ export default function Clientes() {
       const customEvent = e as CustomEvent<{ clientId: number }>;
       if (customEvent.detail && customEvent.detail.clientId) {
         setSelectedClientId(customEvent.detail.clientId);
-        setIsModalOpen(true);
       }
     };
     window.addEventListener('open-client-dossier', handleOpenDossier);
@@ -507,6 +512,10 @@ export default function Clientes() {
   const [formRcaId, setFormRcaId] = useState('');
   const [formResponsibleCommercial, setFormResponsibleCommercial] = useState('');
 
+  // Account model states for New Client Form
+  const [formStatusConta, setFormStatusConta] = useState<'Prospect Radar' | 'Cliente Convertido' | 'Cliente Base'>('Prospect Radar');
+  const [formIdErp, setFormIdErp] = useState('');
+
   // Active view layout toggle state (Tabela vs. Cards)
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
 
@@ -536,8 +545,39 @@ export default function Clientes() {
   const [editPotential, setEditPotential] = useState<'Muito Alto' | 'Alto' | 'Médio' | 'Baixo'>('Médio');
   const [editScore, setEditScore] = useState(70);
 
+  // Account model states for Edit Client Form
+  const [editIdRadar, setEditIdRadar] = useState('');
+  const [editIdErp, setEditIdErp] = useState('');
+
   // Custom Timeline note logging state
   const [timelineNote, setTimelineNote] = useState('');
+
+  // Workspace filter and form states
+  const [wsCategoryFilter, setWsCategoryFilter] = useState('all');
+  const [wsBrandFilter, setWsBrandFilter] = useState('all');
+  const [wsPriorityFilter, setWsPriorityFilter] = useState('all');
+  const [wsIsAddingContact, setWsIsAddingContact] = useState(false);
+  
+  // New contact fields
+  const [wsContactName, setWsContactName] = useState('');
+  const [wsContactRole, setWsContactRole] = useState('');
+  const [wsContactType, setWsContactType] = useState<'Decisor' | 'Influenciador' | 'Operacional'>('Decisor');
+  const [wsContactPhone, setWsContactPhone] = useState('');
+  const [wsContactEmail, setWsContactEmail] = useState('');
+  const [wsContactLinkedin, setWsContactLinkedin] = useState('');
+  const [wsContactInstagram, setWsContactInstagram] = useState('');
+  const [wsContactNotes, setWsContactNotes] = useState('');
+
+  // Commercial Interaction Logger states
+  const [wsHistoryType, setWsHistoryType] = useState<'Ligação' | 'Visita' | 'E-mail' | 'Proposta' | 'Outro'>('Ligação');
+  const [wsHistoryNotes, setWsHistoryNotes] = useState('');
+  const [wsIsRegisteringHistory, setWsIsRegisteringHistory] = useState(false);
+  const [copiedText, setCopiedText] = useState(false);
+
+  // Account model conversion and import modals states
+  const [isConversionModalOpen, setIsConversionModalOpen] = useState(false);
+  const [conversionIdErp, setConversionIdErp] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // --- HANDLERS ---
   const triggerToast = (type: 'success' | 'info' | 'warning' | 'error', message: string, description: string) => {
@@ -546,7 +586,7 @@ export default function Clientes() {
   };
 
   const handleImport = () => {
-    triggerToast('info', 'Módulo de Importação', 'O assistente de importação via planilha Excel (.xlsx) foi ativado (placeholder).');
+    setIsImportModalOpen(true);
   };
 
   const handleExport = () => {
@@ -857,6 +897,16 @@ export default function Clientes() {
     const finalResponsibleRole = formResponsibleRole || enriched.responsibleRole;
     const finalWebsite = formWebsite || enriched.website;
 
+    // Generate id_radar if required
+    let finalIdRadar: string | undefined = undefined;
+    if (formStatusConta === 'Prospect Radar' || formStatusConta === 'Cliente Convertido') {
+      const randomDigits = String(100 + Math.floor(Math.random() * 900));
+      finalIdRadar = `RAD-${randomDigits}`;
+    }
+
+    const finalIdErp = (formStatusConta === 'Cliente Base' || formStatusConta === 'Cliente Convertido') ? (formIdErp.trim() || `ERP-${Math.floor(1000 + Math.random() * 9000)}`) : undefined;
+    const finalStatusConta = deriveStatusConta(finalIdRadar, finalIdErp);
+
     const newClient: Client = {
       id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
       name: finalRazaoSocial,
@@ -893,8 +943,12 @@ export default function Clientes() {
       cep: enriched.cep,
       cnae: enriched.cnae,
 
+      id_radar: finalIdRadar,
+      id_erp: finalIdErp,
+      statusConta: finalStatusConta,
+
       historicoCompleto: [
-        { id: 'h-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Sistema Radar', acao: 'Cliente cadastrado com sucesso na base comercial com status de Entradas.', tipo: 'cadastro' },
+        { id: 'h-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Sistema Radar', acao: `Cliente cadastrado com sucesso como ${finalStatusConta} na base comercial.`, tipo: 'cadastro' },
         { id: 'h-e1-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Claude AI (Processamento)', acao: `Identificação do Restaurante concluída para "${finalFantasyName}".`, tipo: 'atualizacao' },
         { id: 'h-e2-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Claude AI (Processamento)', acao: `CNPJ ${finalCnpj} localizado e dados públicos obtidos.`, tipo: 'atualizacao' },
         { id: 'h-e3-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Claude AI (Processamento)', acao: `Ficha enriquecida com Razão Social, CNAE, Endereço e Canais Digitais.`, tipo: 'atualizacao' },
@@ -925,6 +979,8 @@ export default function Clientes() {
     setFormRegionalId('');
     setFormRcaId('');
     setFormResponsibleCommercial('');
+    setFormStatusConta('Prospect Radar');
+    setFormIdErp('');
 
     triggerToast('success', 'Cliente Cadastrado & Enriquecido', `O estabelecimento "${newClient.fantasyName}" foi registrado e enriquecido automaticamente.`);
   };
@@ -951,6 +1007,8 @@ export default function Clientes() {
     setEditResponsibleCommercial(client.responsibleCommercial);
     setEditPotential(client.potential);
     setEditScore(client.score);
+    setEditIdRadar(client.id_radar || '');
+    setEditIdErp(client.id_erp || '');
     setIsEditModalOpen(true);
   };
 
@@ -976,6 +1034,7 @@ export default function Clientes() {
           }
         ];
 
+        const finalStatusConta = deriveStatusConta(editIdRadar ? editIdRadar : undefined, editIdErp ? editIdErp : undefined);
         return {
           ...c,
           name: editRazaoSocial || c.name,
@@ -999,6 +1058,9 @@ export default function Clientes() {
           responsibleCommercial: rcaName,
           potential: editPotential,
           score: editScore,
+          id_radar: editIdRadar || undefined,
+          id_erp: editIdErp || undefined,
+          statusConta: finalStatusConta,
           dateUpdated: todayStr,
           historicoCompleto: updatedHistory
         };
@@ -1009,6 +1071,153 @@ export default function Clientes() {
     setIsEditModalOpen(false);
     setEditingClient(null);
     triggerToast('success', 'Cadastro Atualizado', 'Os dados do estabelecimento foram atualizados com sucesso.');
+  };
+
+  const handleConvertProspect = (clientId: number, insertedIdErp: string) => {
+    if (!insertedIdErp.trim()) {
+      triggerToast('error', 'Conversão Rejeitada', 'Por favor, insira o ID ERP de destino.');
+      return;
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const timestampStr = todayStr + ' ' + new Date().toTimeString().slice(0, 5);
+
+    setClients(prev => prev.map(c => {
+      if (c.id === clientId) {
+        const history = c.historicoCompleto || [];
+        const updatedHistory = [
+          ...history,
+          {
+            id: 'h-conv-' + Date.now(),
+            data: timestampStr,
+            usuario: 'Marcelo Baquero (Você)',
+            acao: `Conta convertida com sucesso para o ERP. Associado ID ERP: ${insertedIdErp.trim()}. Status do Ciclo de Vida: Cliente Convertido.`,
+            tipo: 'atualizacao' as const
+          }
+        ];
+        return {
+          ...c,
+          id_erp: insertedIdErp.trim(),
+          statusConta: 'Cliente Convertido' as const,
+          dateUpdated: todayStr,
+          historicoCompleto: updatedHistory
+        };
+      }
+      return c;
+    }));
+
+    setIsConversionModalOpen(false);
+    setConversionIdErp('');
+    triggerToast('success', 'Conversão Concluída', `O prospect foi associado ao ID ERP "${insertedIdErp.trim()}" e evoluído no seu ciclo de vida.`);
+  };
+
+  const handleSimulateImport = (scenario: 'gero' | 'cipriani' | 'babbo') => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const timestampStr = todayStr + ' ' + new Date().toTimeString().slice(0, 5);
+
+    if (scenario === 'gero') {
+      const gero = clients.find(c => c.id === 3 || c.cnpj === '45.890.123/0001-44');
+      if (gero) {
+        setClients(prev => prev.map(c => {
+          if (c.id === gero.id) {
+            const updatedHistory = [
+              ...(c.historicoCompleto || []),
+              {
+                id: 'h-import-' + Date.now(),
+                data: timestampStr,
+                usuario: 'Importador C-Trade ERP',
+                acao: 'Conta associada com ID ERP (ERP-4455) via sincronização automática da planilha. Status de ciclo de vida evoluído de "Prospect Radar" para "Cliente Convertido".',
+                tipo: 'atualizacao' as const
+              }
+            ];
+            return {
+              ...c,
+              id_erp: 'ERP-4455',
+              statusConta: 'Cliente Convertido' as const,
+              dateUpdated: todayStr,
+              historicoCompleto: updatedHistory
+            };
+          }
+          return c;
+        }));
+        triggerToast('success', 'Importação Concluída', 'O Prospect "Gero Ipanema" foi correspondido pelo CNPJ, atualizado e evoluído para Cliente Convertido no mesmo registro.');
+      } else {
+        triggerToast('warning', 'Erro na Simulação', 'Gero Ipanema não localizado na base.');
+      }
+    } else if (scenario === 'cipriani') {
+      const hasCipriani = clients.some(c => c.cnpj === '33.221.098/0001-55');
+      if (hasCipriani) {
+        triggerToast('info', 'Cipriani Já Cadastrado', 'O restaurante Cipriani já foi importado anteriormente.');
+      } else {
+        const newClient: Client = {
+          id: clients.length > 0 ? Math.max(...clients.map(c => c.id)) + 1 : 1,
+          name: 'Cipriani Gastronomia do Brasil Ltda',
+          fantasyName: 'Cipriani',
+          razaoSocial: 'Cipriani Gastronomia do Brasil Ltda',
+          cnpj: '33.221.098/0001-55',
+          city: 'Rio de Janeiro',
+          state: 'RJ',
+          segment: 'Restaurante Italiano',
+          category: 'Azeites, Tomates e Grãos',
+          instagram: '@ciprianicopacabana',
+          website: 'www.belmond.com',
+          phone: '(21) 2548-7070',
+          email: 'cipriani@belmond.com',
+          responsible: 'Aniello Cassese',
+          responsibleRole: 'Chef Executivo',
+          observations: 'Cliente Base importado do ERP comercial C-Trade. Pronto para análises do Radar.',
+          score: 85,
+          potential: 'Alto',
+          status: 'Entradas',
+          lastAnalysis: 'Aguardando envio',
+          lastUpload: 'Sem cardápio submetido',
+          dateCreated: todayStr,
+          dateUpdated: todayStr,
+          id_erp: 'ERP-5566',
+          statusConta: 'Cliente Base',
+          responsibleCommercial: 'RCA Marcelo Baquero',
+          historicoCompleto: [
+            {
+              id: 'h-import-new-' + Date.now(),
+              data: timestampStr,
+              usuario: 'Importador C-Trade ERP',
+              acao: 'Cliente Base importado com sucesso do ERP C-Trade (ID ERP: ERP-5566). Cadastro limpo criado.',
+              tipo: 'cadastro' as const
+            }
+          ]
+        };
+        setClients(prev => [newClient, ...prev]);
+        triggerToast('success', 'Importação Concluída', 'Cipriani importado como "Cliente Base" (ID ERP: ERP-5566). Nenhum ID Radar atribuído.');
+      }
+    } else if (scenario === 'babbo') {
+      const babbo = clients.find(c => c.id === 1 || c.cnpj === '12.345.678/0001-90');
+      if (babbo) {
+        setClients(prev => prev.map(c => {
+          if (c.id === babbo.id) {
+            const updatedHistory = [
+              ...(c.historicoCompleto || []),
+              {
+                id: 'h-import-update-' + Date.now(),
+                data: timestampStr,
+                usuario: 'Importador C-Trade ERP',
+                acao: 'Atualização cadastral realizada via importador de dados (Telefone atualizado para (21) 99999-8888). Sem duplicação de registro.',
+                tipo: 'atualizacao' as const
+              }
+            ];
+            return {
+              ...c,
+              phone: '(21) 99999-8888',
+              dateUpdated: todayStr,
+              historicoCompleto: updatedHistory
+            };
+          }
+          return c;
+        }));
+        triggerToast('success', 'Importação Concluída', 'Cadastro do Babbo Osteria localizado pelo CNPJ e atualizado (Telefone). Duplicidade evitada.');
+      }
+    }
+
+    setIsImportModalOpen(false);
   };
 
   const handleAddTimelineNote = (clientId: number) => {
@@ -1229,12 +1438,21 @@ export default function Clientes() {
           onClick={() => setSelectedClientId(row.id)}
           className="flex flex-col text-left group cursor-pointer focus:outline-hidden"
         >
-          <span className="font-bold text-slate-800 leading-normal group-hover:text-blue-700 transition-colors">
+          <span className="font-bold text-slate-800 leading-normal group-hover:text-blue-700 transition-colors flex flex-wrap items-center gap-1.5">
             {row.name}
+            {row.statusConta && (
+              <span className={`text-[8px] font-black uppercase px-1 py-0.5 rounded border leading-none ${
+                row.statusConta === 'Prospect Radar' ? 'text-amber-800 bg-amber-50 border-amber-200' :
+                row.statusConta === 'Cliente Convertido' ? 'text-emerald-800 bg-emerald-50 border-emerald-200' :
+                'text-blue-800 bg-blue-50 border-blue-200'
+              }`}>
+                {row.statusConta}
+              </span>
+            )}
           </span>
           <span className="text-[10px] text-slate-400 font-semibold flex items-center gap-1 mt-0.5">
             <Building2 className="h-3 w-3 text-slate-300" />
-            {row.fantasyName}
+            {row.fantasyName} {row.id_radar ? `| ID Radar: ${row.id_radar}` : ''} {row.id_erp ? `| ID ERP: ${row.id_erp}` : ''}
           </span>
         </button>
       )
@@ -1372,859 +1590,18 @@ export default function Clientes() {
         </div>
       )}
 
-      {/* Breadcrumb path */}
-      <Breadcrumb items={breadcrumbItems} onHomeClick={selectedClient ? () => setSelectedClientId(null) : undefined} />
-
-      {/* Conditional Rendering: Details View vs. Main Listing */}
+       {/* Conditional Rendering: Details View vs. Main Listing */}
       {selectedClient ? (
-        // ----------------- TELA DE DETALHES DO CLIENTE (CENTRAL DE INTELIGÊNCIA) -----------------
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
-          className="space-y-6"
-        >
-          {/* Details Page Header Card */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className="bg-blue-50/80 text-blue-950 border border-blue-100 p-3.5 rounded-xl shadow-xs shrink-0 flex items-center justify-center">
-                <Building2 className="h-7 w-7" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="text-xl font-black text-slate-800 tracking-tight leading-none">
-                    {selectedClient.fantasyName}
-                  </h2>
-                  <Badge variant="info">{selectedClient.segment}</Badge>
-                </div>
-                <p className="text-xs font-semibold text-slate-400 flex items-center gap-1">
-                  <Building2 className="h-3 w-3 text-slate-300" />
-                  Razão Social: {selectedClient.name} {selectedClient.cnpj ? `| CNPJ: ${selectedClient.cnpj}` : ''}
-                </p>
-                <p className="text-[11px] font-bold text-slate-500 flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5 text-slate-300" />
-                  {selectedClient.city} - {selectedClient.state}
-                </p>
-
-                <div className="flex flex-wrap gap-2 mt-2 pt-1">
-                  {/* Status badge representation */}
-                  <Badge
-                    variant={
-                      selectedClient.status === 'Entradas'
-                        ? 'info'
-                        : selectedClient.status === 'Autorizados'
-                        ? 'success'
-                        : 'danger'
-                    }
-                  >
-                    Status: {selectedClient.status}
-                  </Badge>
-
-                  {/* Potential badge */}
-                  <Badge
-                    variant={
-                      selectedClient.potential === 'Muito Alto'
-                        ? 'primary'
-                        : selectedClient.potential === 'Alto'
-                        ? 'success'
-                        : selectedClient.potential === 'Médio'
-                        ? 'warning'
-                        : 'danger'
-                    }
-                  >
-                    Potencial: {selectedClient.potential}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-
-            {/* Score circle alignment inside header */}
-            <div className="flex items-center shrink-0 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 max-w-sm w-full md:w-80">
-              <FitComercial 
-                score={selectedClient.score} 
-                variant="card" 
-                history={selectedClient.fitHistory}
-                lastUpdated={selectedClient.lastAnalysis || selectedClient.dateUpdated}
-              />
-            </div>
-          </div>
-
-          {/* Quick Actions Panel */}
-          <div className="flex flex-wrap gap-3">
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<Sparkles className="h-4 w-4" />}
-              onClick={() => handleTriggerMockAnalysis(selectedClient.id)}
-            >
-              Analisar Cardápio de IA (Recalcular Score)
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<UploadIcon className="h-4 w-4" />}
-              onClick={() => {
-                // Simulates uploading a new menu to this client
-                try {
-                  const existingStr = localStorage.getItem('ctrade_menu_library');
-                  const menus = existingStr ? JSON.parse(existingStr) : [];
-                  
-                  const count = menus.filter((m: any) => m.nomeEstabelecimento === selectedClient.name).length + 1;
-                  
-                  const todayStr = new Date().toISOString().split('T')[0];
-
-                  const newMenu = {
-                    id: 'm-' + Date.now(),
-                    nomeEstabelecimento: selectedClient.name,
-                    empresa: selectedClient.name,
-                    estado: selectedClient.state,
-                    cidade: selectedClient.city,
-                    segmento: selectedClient.segment,
-                    dataEnvio: todayStr,
-                    origem: 'Upload Manual',
-                    status: 'Entradas',
-                    nomeArquivo: `Cardapio_${selectedClient.fantasyName.replace(/\s+/g, '_')}_v${count}.pdf`,
-                    tamanhoArquivo: '2.4 MB',
-                    produtosIdentificados: selectedClient.id === 1 ? [
-                      { id: 'pi-1', nomeNoCardapio: 'Spaghetti ai Frutti di Mare', brand: 'Valdigrano', category: 'Massas Tradicionais', productName: 'Spaghetti', status: 'Homologado' },
-                      { id: 'pi-2', nomeNoCardapio: 'Mozzarella di Bufala Speciale', brand: 'Latteria Sorrentina', category: 'Fiordilatte', productName: 'Fiordilatte Bola', status: 'Homologado' }
-                    ] : [
-                      { id: 'pi-e1', nomeNoCardapio: 'Pizza Margherita', brand: 'Molino Caputo', category: 'Farinhas Profissionais', productName: 'Farinha Pizzeria', status: 'Homologado' },
-                      { id: 'pi-e2', nomeNoCardapio: 'Pomodoro Marinara', brand: 'Ciao', category: 'Tomates Italianos', productName: 'Tomate Pelati', status: 'Homologado' }
-                    ]
-                  };
-
-                  localStorage.setItem('ctrade_menu_library', JSON.stringify([newMenu, ...menus]));
-                  window.dispatchEvent(new Event('storage'));
-
-                  setClients(prev => prev.map(c => {
-                    if (c.id === selectedClient.id) {
-                      const needsEnrichment = !c.endereco || !c.cnpj;
-                      const enriched = needsEnrichment ? getEnrichedCompanyData(c.name, c.city, c.state) : null;
-                      
-                      const newHistory = [
-                        ...(c.historicoCompleto || []),
-                        {
-                          id: 'h-' + Date.now(),
-                          data: todayStr + ' ' + new Date().toTimeString().slice(0, 5),
-                          usuario: 'Marcelo Baquero (Você)',
-                          acao: `Novo cardápio enviado manualmente: ${newMenu.nomeArquivo}.`,
-                          tipo: 'cardapio' as const
-                        }
-                      ];
-
-                      if (enriched) {
-                        newHistory.push(
-                          { id: 'h-enrich-1-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Claude AI (Processamento)', acao: `Iniciando enriquecimento automático em segundo plano pelo upload do cardápio.`, tipo: 'atualizacao' as const },
-                          { id: 'h-enrich-2-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Claude AI (Processamento)', acao: `CNPJ ${enriched.cnpj} localizado com Situação Cadastral: ${enriched.situacaoCadastral}.`, tipo: 'atualizacao' as const },
-                          { id: 'h-enrich-3-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Claude AI (Processamento)', acao: `Ficha enriquecida com atividade CNAE: ${enriched.cnae} e endereço: ${enriched.endereco}.`, tipo: 'atualizacao' as const },
-                          { id: 'h-enrich-4-' + Date.now(), data: todayStr + ' ' + new Date().toTimeString().slice(0, 5), usuario: 'Claude AI (Processamento)', acao: `Responsável de compras identificado: ${enriched.responsible} (${enriched.responsibleRole}). LinkedIn cadastrado.`, tipo: 'atualizacao' as const }
-                        );
-                      }
-
-                      return {
-                        ...c,
-                        lastUpload: newMenu.nomeArquivo,
-                        dateUpdated: todayStr,
-                        cnpj: c.cnpj || (enriched ? enriched.cnpj : undefined),
-                        razaoSocial: c.razaoSocial || (enriched ? enriched.razaoSocial : undefined),
-                        fantasyName: c.fantasyName || (enriched ? enriched.fantasyName : c.name),
-                        situacaoCadastral: c.situacaoCadastral || (enriched ? enriched.situacaoCadastral : undefined),
-                        dataAbertura: c.dataAbertura || (enriched ? enriched.dataAbertura : undefined),
-                        endereco: c.endereco || (enriched ? enriched.endereco : undefined),
-                        cep: c.cep || (enriched ? enriched.cep : undefined),
-                        cnae: c.cnae || (enriched ? enriched.cnae : undefined),
-                        phone: (c.phone && isValidPhone(c.phone)) ? c.phone : (enriched && isValidPhone(enriched.phone) ? enriched.phone : c.phone),
-                        website: c.website || (enriched ? enriched.website : undefined),
-                        responsible: c.responsible || (enriched ? enriched.responsible : undefined),
-                        responsibleRole: c.responsibleRole || (enriched ? enriched.responsibleRole : undefined),
-                        linkedin: c.linkedin || (enriched ? enriched.linkedin : undefined),
-                        historicoCompleto: newHistory
-                      };
-                    }
-                    return c;
-                  }));
-
-                  triggerToast('success', 'Cardápio Submetido', `O arquivo "${newMenu.nomeArquivo}" foi anexado e está pronto para análise.`);
-                } catch (e) {
-                  console.error(e);
-                }
-              }}
-            >
-              Fazer Upload de Cardápio
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={<Edit2 className="h-4 w-4" />}
-              onClick={() => handleOpenEditModal(selectedClient)}
-            >
-              Editar Dados de Cadastro
-            </Button>
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs">
-              <span className="font-bold text-slate-500">Status:</span>
-              <select
-                value={selectedClient.status}
-                onChange={(e) => {
-                  const newStatus = e.target.value as 'Entradas' | 'Autorizados' | 'Rejeitados';
-                  if (newStatus === 'Rejeitados') {
-                    setRejectionTargetId(selectedClient.id);
-                    setIsRejectionModalOpen(true);
-                  } else {
-                    const todayStr = new Date().toISOString().split('T')[0];
-                    setClients(prev => prev.map(c => c.id === selectedClient.id ? { 
-                      ...c, 
-                      status: newStatus, 
-                      rejectionReason: undefined,
-                      dateUpdated: todayStr,
-                      historicoCompleto: [
-                        ...(c.historicoCompleto || []),
-                        { id: 'h-st-' + Date.now(), data: todayStr + ' 12:00', usuario: 'Marcelo Baquero (Você)', acao: `Status comercial alterado para ${newStatus}.`, tipo: 'atualizacao' as const }
-                      ]
-                    } : c));
-                    triggerToast('success', 'Status Atualizado', `Status de "${selectedClient.name}" alterado para ${newStatus}.`);
-                  }
-                }}
-                className="bg-white border border-slate-250 rounded-md px-2 py-1 font-bold text-slate-700 outline-hidden focus:border-blue-500 cursor-pointer"
-              >
-                <option value="Entradas">Entradas</option>
-                <option value="Autorizados">Autorizados</option>
-                <option value="Rejeitados">Rejeitados</option>
-              </select>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<ArrowLeft className="h-4 w-4" />}
-              onClick={() => setSelectedClientId(null)}
-            >
-              Voltar para Base Comercial
-            </Button>
-          </div>
-
-          {selectedClient.status === 'Rejeitados' && selectedClient.rejectionReason && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-4 text-xs font-semibold leading-relaxed animate-fadeIn">
-              <strong className="text-rose-900 block mb-1 font-black uppercase text-[10px] tracking-wider">Motivo da Rejeição do Registro:</strong>
-              {selectedClient.rejectionReason}
-            </div>
-          )}
-
-          {/* 1. RESUMO EXECUTIVO (PAINEL DE KPIS DINÂMICOS DO CLIENTE) */}
-          <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-xs">
-            <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider mb-4 flex items-center gap-1.5">
-              <TrendingUp className="h-4 w-4 text-blue-900 animate-pulse" />
-              Resumo Executivo (Painel Comercial do Estabelecimento)
-            </h3>
-            
-            {(() => {
-              // Calculate dynamic stats
-              const savedMenusStr = localStorage.getItem('ctrade_menu_library');
-              const savedMenus = savedMenusStr ? JSON.parse(savedMenusStr) : [];
-              const clientMenus = savedMenus.filter((m: any) => 
-                m.nomeEstabelecimento === selectedClient.name || 
-                m.nomeEstabelecimento === selectedClient.fantasyName
-              );
-
-              const totalMenus = clientMenus.length;
-              const allIdentified = clientMenus.flatMap((m: any) => m.produtosIdentificados || []);
-              const totalIdentified = allIdentified.length;
-              const portfolioProducts = allIdentified.filter((p: any) => !p.notInCatalog).length;
-              const outOfPortfolioProducts = allIdentified.filter((p: any) => p.notInCatalog).length;
-
-              const uniqueCategories = Array.from(new Set(allIdentified.map((p: any) => p.category).filter(Boolean)));
-              const totalCategories = uniqueCategories.length;
-
-              let curadoriaStatus = 'Sem Cardápio';
-              if (totalMenus > 0) {
-                const hasPending = allIdentified.some((p: any) => p.status === 'Pendente');
-                curadoriaStatus = hasPending ? 'Pendente' : 'Homologado';
-              }
-
-              const fitScore = selectedClient.score;
-              const opp = REAL_OPPORTUNITIES.find(o => o.cliente.toLowerCase() === selectedClient.name.toLowerCase());
-              const commercialScore = opp ? opp.scoreComercial : fitScore;
-
-              return (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cardápios Enviados</span>
-                    <span className="text-xl font-extrabold text-slate-800 block leading-none">{totalMenus}</span>
-                    <span className="text-[9px] text-slate-400 font-semibold block">Total em custódia</span>
-                  </div>
-                  
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">SKUs Mapeados</span>
-                    <span className="text-xl font-extrabold text-slate-800 block leading-none">{totalIdentified}</span>
-                    <span className="text-[9px] text-slate-500 font-bold block flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>{portfolioProducts} Portfólio
-                    </span>
-                  </div>
-
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Fora de Catálogo</span>
-                    <span className="text-xl font-extrabold text-slate-800 block leading-none">{outOfPortfolioProducts}</span>
-                    <span className="text-[9px] text-slate-400 font-semibold block">Marcas de Concorrentes</span>
-                  </div>
-
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Potencial / Score Fit</span>
-                    <div className="flex items-center gap-1.5 leading-none">
-                      <span className="text-xl font-extrabold text-blue-900">{fitScore}</span>
-                      <span className="text-[9px] font-black uppercase text-blue-700 bg-blue-50 px-1 rounded border border-blue-100">{selectedClient.potential}</span>
-                    </div>
-                    <span className="text-[9px] text-slate-400 font-semibold block">Score de Qualificação</span>
-                  </div>
-
-                  <div className="bg-slate-50 border border-slate-100 rounded-xl p-3.5 space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Status Curadoria</span>
-                    <span className={`text-xs font-black uppercase inline-block px-2 py-0.5 rounded border leading-none ${
-                      curadoriaStatus === 'Homologado' ? 'text-emerald-800 bg-emerald-50 border-emerald-100' :
-                      curadoriaStatus === 'Pendente' ? 'text-amber-800 bg-amber-50 border-amber-100' :
-                      'text-slate-500 bg-slate-50 border-slate-200'
-                    }`}>
-                      {curadoriaStatus}
-                    </span>
-                    <span className="text-[9px] text-slate-400 font-semibold block mt-1">Homologação de SKUs</span>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Information Grid Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* COLUMN 1 & 2 (Main Content) */}
-            <div className="lg:col-span-2 space-y-6">
-              
-              {/* 2. DADOS GERAIS DO CADASTRO (Ficha Completa) */}
-              <Card>
-                <div className="border-b border-slate-50 pb-3 mb-4.5 flex justify-between items-center">
-                  <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                    Informações e Dados Cadastrais
-                  </h3>
-                  <span className="text-[10px] font-bold text-slate-400">
-                    Cadastrado em {selectedClient.dateCreated ? new Date(selectedClient.dateCreated).toLocaleDateString('pt-BR') : '15/01/2026'}
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs font-semibold text-slate-700">
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Razão Social</span>
-                    <span className="text-slate-800 font-extrabold">{selectedClient.razaoSocial || selectedClient.name}</span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Nome Fantasia</span>
-                    <span className="text-slate-800 font-extrabold">{selectedClient.fantasyName}</span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">CNPJ</span>
-                    <span className="text-slate-800 font-bold">{selectedClient.cnpj || 'Não Informado'}</span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Segmento Gastronômico</span>
-                    <Badge variant="info">{selectedClient.segment}</Badge>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Cidade / Estado</span>
-                    <span className="text-slate-800 font-bold flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                      {selectedClient.city} ({selectedClient.state})
-                    </span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Regional Relacionada</span>
-                    <span className="text-slate-800 font-bold">
-                      {regionals.find(r => r.id === selectedClient.regionalId)?.name || 'Regional Padrão'}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">RCA Atribuído</span>
-                    <span className="text-slate-800 font-bold">
-                      {rcas.find(r => r.id === selectedClient.rcaId)?.name || 'RCA Padrão'}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Gestor Responsável Comercial</span>
-                    <span className="text-slate-800 font-bold flex items-center gap-1.5 text-blue-900">
-                      <User className="h-3.5 w-3.5 text-blue-500" />
-                      {selectedClient.responsibleCommercial || 'Marcelo Baquero'}
-                    </span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Contato Decisor / Cargo</span>
-                    <span className="text-slate-800 font-bold flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-slate-400" />
-                      {selectedClient.responsible} ({selectedClient.responsibleRole})
-                    </span>
-                  </div>
-                  <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                    <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Última Atualização</span>
-                    <span className="text-slate-800 font-bold flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5 text-slate-400" />
-                      {selectedClient.dateUpdated ? new Date(selectedClient.dateUpdated).toLocaleDateString('pt-BR') : 'Hoje'}
-                    </span>
-                  </div>
-                  {selectedClient.situacaoCadastral && (
-                    <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Situação Cadastral Receita</span>
-                      <span className={`inline-block text-[9px] font-black uppercase px-2 py-0.5 rounded border leading-none ${
-                        selectedClient.situacaoCadastral === 'ATIVA' ? 'text-emerald-800 bg-emerald-50 border-emerald-100' : 'text-slate-700 bg-slate-50 border-slate-150'
-                      }`}>
-                        {selectedClient.situacaoCadastral}
-                      </span>
-                    </div>
-                  )}
-                  {selectedClient.dataAbertura && (
-                    <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Data de Abertura</span>
-                      <span className="text-slate-800 font-extrabold">{selectedClient.dataAbertura}</span>
-                    </div>
-                  )}
-                  {selectedClient.endereco && (
-                    <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 sm:col-span-2">
-                      <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Endereço Comercial</span>
-                      <span className="text-slate-800 font-bold block truncate" title={selectedClient.endereco}>{selectedClient.endereco}</span>
-                    </div>
-                  )}
-                  {selectedClient.cep && (
-                    <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
-                      <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">CEP</span>
-                      <span className="text-slate-800 font-bold">{selectedClient.cep}</span>
-                    </div>
-                  )}
-                  {selectedClient.cnae && (
-                    <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100 sm:col-span-2">
-                      <span className="text-[10px] text-slate-400 font-black block mb-0.5 uppercase tracking-wider">Atividade CNAE Principal</span>
-                      <span className="text-slate-800 font-bold block truncate" title={selectedClient.cnae}>{selectedClient.cnae}</span>
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-              {/* 3. PRODUTOS UTILIZADOS (CATEGORIA -> MARCA -> PRODUTO) */}
-              <Card>
-                <div className="border-b border-slate-50 pb-3 mb-4.5 flex justify-between items-center">
-                  <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4 text-blue-900" />
-                    Produtos Mapeados (Curation Tree)
-                  </h3>
-                  <span className="text-[10px] font-black uppercase text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-150">
-                    Organização: Categoria ➔ Marca ➔ SKU
-                  </span>
-                </div>
-
-                {(() => {
-                  // Group identified products dynamically
-                  const savedMenusStr = localStorage.getItem('ctrade_menu_library');
-                  const savedMenus = savedMenusStr ? JSON.parse(savedMenusStr) : [];
-                  const clientMenus = savedMenus.filter((m: any) => 
-                    m.nomeEstabelecimento === selectedClient.name || 
-                    m.nomeEstabelecimento === selectedClient.fantasyName
-                  );
-
-                  const allIdentified = clientMenus.flatMap((m: any) => m.produtosIdentificados || []);
-
-                  if (allIdentified.length === 0) {
-                    return (
-                      <div className="text-center py-8 bg-slate-50/50 border border-dashed border-slate-200 rounded-xl">
-                        <FileText className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                        <span className="font-bold text-slate-700 block text-xs">Nenhum cardápio processado para este cliente</span>
-                        <p className="text-[10px] text-slate-400 max-w-xs mx-auto mt-1 leading-relaxed">
-                          Submeta ou analise um cardápio acima para mapear automaticamente ingredientes utilizados pelo restaurante.
-                        </p>
-                      </div>
-                    );
-                  }
-
-                  // Tree grouping
-                  const tree: { [cat: string]: { [brand: string]: any[] } } = {};
-                  allIdentified.forEach((item: any) => {
-                    const cat = item.category || 'Outras Categorias';
-                    const brand = item.brand || 'Marca Desconhecida / Concorrente';
-                    if (!tree[cat]) tree[cat] = {};
-                    if (!tree[cat][brand]) tree[cat][brand] = [];
-                    tree[cat][brand].push(item);
-                  });
-
-                  return (
-                    <div className="space-y-4">
-                      {Object.entries(tree).map(([category, brandsObj]) => (
-                        <div key={category} className="border border-slate-150 rounded-xl overflow-hidden shadow-2xs">
-                          {/* Category level */}
-                          <div className="bg-slate-50 border-b border-slate-150 px-4 py-2.5 flex justify-between items-center">
-                            <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-                              <Building2 className="h-3.5 w-3.5 text-blue-900 shrink-0" />
-                              {category}
-                            </span>
-                            <span className="bg-blue-50 text-blue-900 text-[10px] font-black px-2 py-0.5 rounded border border-blue-100">
-                              {Object.values(brandsObj).flat().length} SKUs
-                            </span>
-                          </div>
-
-                          {/* Brand level */}
-                          <div className="p-3.5 space-y-3 bg-white">
-                            {Object.entries(brandsObj).map(([brand, items]) => (
-                              <div key={brand} className="space-y-2 border-l-2 border-slate-200 pl-3">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                                  Marca: {brand}
-                                </span>
-                                
-                                {/* Product cards */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {items.map((it: any, itIdx: number) => {
-                                    const isNotInCatalog = it.notInCatalog;
-                                    return (
-                                      <div key={`${it.id || 'it'}-${itIdx}`} className="bg-slate-50/50 hover:bg-slate-100/50 p-2.5 rounded-lg border border-slate-100 transition-colors flex items-start justify-between gap-2">
-                                        <div className="space-y-0.5 truncate">
-                                          <span className="text-xs font-bold text-slate-800 truncate block">
-                                            {it.productName || it.nomeNoCardapio}
-                                          </span>
-                                          {it.nomeNoCardapio && it.nomeNoCardapio !== it.productName && (
-                                            <span className="text-[10px] text-slate-400 block truncate">
-                                              No menu: "{it.nomeNoCardapio}"
-                                            </span>
-                                          )}
-                                        </div>
-                                        <div className="shrink-0 flex flex-col items-end gap-1">
-                                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border leading-none ${
-                                            isNotInCatalog ? 'text-amber-800 bg-amber-50 border-amber-200' : 'text-emerald-800 bg-emerald-50 border-emerald-200'
-                                          }`}>
-                                            {isNotInCatalog ? 'Concorrente' : 'Portfólio'}
-                                          </span>
-                                          <span className="text-[9px] font-bold text-slate-400">
-                                            {it.status || 'Homologado'}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </Card>
-
-              {/* 4. HISTÓRICO COMERCIAL (TIMELINE COM INSERÇÃO DE NOTAS) */}
-              <Card>
-                <div className="border-b border-slate-50 pb-3 mb-4.5 flex justify-between items-center">
-                  <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-blue-900" />
-                    Histórico & Linha do Tempo Comercial
-                  </h3>
-                  <span className="text-[10px] font-bold text-slate-400">
-                    Registro de Ações em Custódia
-                  </span>
-                </div>
-
-                {/* Timeline insertion box */}
-                <div className="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-xl space-y-3">
-                  <span className="text-[10px] font-black uppercase text-slate-600 block">Registrar Novo Acontecimento Comercial / Nota</span>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Descreva a ação (ex: Ligação realizada, visita agendada, negociação iniciada, etc)..."
-                      value={timelineNote}
-                      onChange={(e) => setTimelineNote(e.target.value)}
-                      className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 focus:outline-hidden"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleAddTimelineNote(selectedClient.id);
-                      }}
-                    />
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => handleAddTimelineNote(selectedClient.id)}
-                    >
-                      Inserir Nota
-                    </Button>
-                  </div>
-                </div>
-
-                {/* The vertical timeline list */}
-                {(() => {
-                  const history = selectedClient.historicoCompleto || [];
-                  if (history.length === 0) {
-                    return (
-                      <p className="text-center text-slate-400 text-xs py-4">Nenhum evento registrado no histórico.</p>
-                    );
-                  }
-
-                  // Render chronological events (newest on top)
-                  const sortedHistory = [...history].reverse();
-
-                  return (
-                    <div className="relative border-l border-slate-200 ml-3.5 pl-6 space-y-6">
-                      {sortedHistory.map((ev, index) => {
-                        let badgeColor = 'bg-blue-500 text-white';
-                        if (ev.tipo === 'cadastro') badgeColor = 'bg-slate-400 text-white';
-                        else if (ev.tipo === 'cardapio') badgeColor = 'bg-indigo-500 text-white';
-                        else if (ev.tipo === 'analise') badgeColor = 'bg-emerald-500 text-white';
-                        else if (ev.tipo === 'curadoria') badgeColor = 'bg-amber-500 text-white';
-                        else if (ev.tipo === 'atualizacao') badgeColor = 'bg-cyan-500 text-white';
-
-                        return (
-                          <div key={ev.id || index} className="relative">
-                            {/* Dot icon */}
-                            <span className={`absolute -left-[31px] top-0.5 rounded-full h-5.5 w-5.5 border-4 border-white flex items-center justify-center text-[10px] font-bold ${badgeColor}`}>
-                              {ev.tipo === 'analise' ? '★' : '●'}
-                            </span>
-                            
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase text-slate-400">{ev.data}</span>
-                                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Por: {ev.usuario}</span>
-                              </div>
-                              <p className="text-xs font-semibold text-slate-700 leading-normal">
-                                {ev.acao}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </Card>
-
-            </div>
-
-            {/* COLUMN 3 (Sidebar details) */}
-            <div className="space-y-6">
-              
-              {/* CONTACTS CARD */}
-              <Card>
-                <div className="border-b border-slate-50 pb-3 mb-4.5">
-                  <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                    Canais de Comunicação
-                  </h3>
-                </div>
-                <div className="space-y-3.5 text-xs font-semibold text-slate-700">
-                  <div className="flex items-center gap-2.5">
-                    <Phone className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span>{isValidPhone(selectedClient.phone) ? selectedClient.phone : 'Tel. Não Encontrado'}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2.5">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Linkedin className="h-4 w-4 text-slate-400 shrink-0" />
-                      {selectedClient.linkedin ? (
-                        <span className="truncate text-blue-600 hover:underline cursor-pointer">
-                          {selectedClient.linkedin}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic">LinkedIn não encontrado</span>
-                      )}
-                    </div>
-                    {selectedClient.linkedin && (
-                      <a
-                        href={selectedClient.linkedin.startsWith('http') ? selectedClient.linkedin : `https://${selectedClient.linkedin}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] font-black text-blue-600 hover:text-blue-800 uppercase tracking-wider shrink-0 cursor-pointer"
-                      >
-                        Abrir Perfil
-                      </a>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <Mail className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span className="truncate">{selectedClient.email || 'contato@estabelecimento.com'}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <Instagram className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span className="truncate text-blue-600 hover:underline cursor-pointer">{selectedClient.instagram || '@estabelecimento'}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <Globe className="h-4 w-4 text-slate-400 shrink-0" />
-                    <span className="truncate text-blue-600 hover:underline cursor-pointer">{selectedClient.website || 'www.estabelecimento.com.br'}</span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* 5. CARDÁPIOS (GERENCIAMENTO DE ARQUIVOS) */}
-              <Card>
-                <div className="border-b border-slate-50 pb-3 mb-4.5">
-                  <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                    Histórico de Cardápios PDF
-                  </h3>
-                </div>
-
-                {(() => {
-                  const savedMenusStr = localStorage.getItem('ctrade_menu_library');
-                  const savedMenus = savedMenusStr ? JSON.parse(savedMenusStr) : [];
-                  const clientMenus = savedMenus.filter((m: any) => 
-                    m.nomeEstabelecimento === selectedClient.name || 
-                    m.nomeEstabelecimento === selectedClient.fantasyName
-                  );
-
-                  if (clientMenus.length === 0) {
-                    return (
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        Nenhum arquivo submetido. Clique em "Fazer Upload de Cardápio" para simular o recebimento de cardápio.
-                      </p>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-3">
-                      {clientMenus.map((m: any) => (
-                        <div key={m.id} className="bg-slate-50 p-2.5 border border-slate-100 rounded-lg space-y-1.5 text-xs font-semibold">
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-slate-700 truncate font-bold block flex-1">
-                              {m.nomeArquivo || `Cardapio_${m.nomeEstabelecimento}.pdf`}
-                            </span>
-                            <span className="bg-blue-50 text-blue-800 text-[9px] px-1 py-0.5 rounded uppercase leading-none font-black">
-                              {m.origem}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center text-[10px] text-slate-400">
-                            <span>Tamanho: {m.tamanhoArquivo || '2.1 MB'}</span>
-                            <span>Enviado: {m.dataEnvio}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </Card>
-
-              {/* 6. OPORTUNIDADES COMERCIAIS (OPPORTUNITY LINK) */}
-              <Card>
-                <div className="border-b border-slate-50 pb-3 mb-4.5 flex justify-between items-center">
-                  <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                    Oportunidades de Venda
-                  </h3>
-                  <span className="text-[10px] font-black uppercase text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
-                    RD Station Sync
-                  </span>
-                </div>
-
-                {(() => {
-                  const opps = REAL_OPPORTUNITIES.filter(o => 
-                    o.cliente.toLowerCase() === selectedClient.name.toLowerCase() ||
-                    o.cliente.toLowerCase() === selectedClient.fantasyName.toLowerCase()
-                  );
-
-                  if (opps.length === 0) {
-                    return (
-                      <p className="text-xs text-slate-400 leading-relaxed">
-                        Nenhuma oportunidade de venda ativa gerada para este estabelecimento. O score de fit atual é de <strong>{selectedClient.score} pts</strong>.
-                      </p>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-4">
-                      {opps.map((op, idx) => (
-                        <div key={op.id || idx} className="bg-slate-50/50 p-3.5 border border-slate-150 rounded-xl space-y-2.5 text-xs font-semibold text-slate-700">
-                          <div className="flex justify-between items-start gap-2">
-                            <span className="text-slate-800 font-extrabold block text-xs leading-tight">
-                              Oportunidade — {selectedClient.fantasyName}
-                            </span>
-                            <Badge variant="warning">{op.prioridade}</Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-1.5 text-[10px] leading-normal font-bold">
-                            <div>
-                              <span className="text-slate-400 block uppercase text-[9px]">Potencial Estimado</span>
-                              <span className="text-slate-800 font-extrabold">{op.faturamentoEstimado || (op.valorPotencialEstimado ? `R$ ${op.valorPotencialEstimado.toLocaleString('pt-BR')}/mês` : 'R$ 15.000/mês')}</span>
-                            </div>
-                            <div>
-                              <span className="text-slate-400 block uppercase text-[9px]">Status</span>
-                              <span className="text-indigo-800 font-black">{op.status}</span>
-                            </div>
-                          </div>
-
-                          <div className="border-t border-slate-100 pt-2">
-                            <span className="text-[9px] text-slate-400 font-black uppercase block mb-1">SKUs Recomendados</span>
-                            <div className="flex flex-wrap gap-1">
-                              {op.produtosRecomendados.map((p, pIdx) => (
-                                <span key={pIdx} className="bg-slate-100 text-slate-700 text-[9px] px-1.5 py-0.5 rounded font-bold">
-                                  {p}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Interactive CRM Export Mock Button */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              triggerToast('success', 'Exportação Concluída', `Oportunidade "${selectedClient.fantasyName}" sincronizada com sucesso no RD Station CRM.`);
-                            }}
-                            className="w-full bg-blue-900 text-white rounded-lg py-1.5 text-[10px] font-black uppercase tracking-wider hover:bg-blue-950 transition-colors cursor-pointer text-center"
-                          >
-                            Exportar para RD Station CRM
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </Card>
-
-              {/* 7. OBSERVÇÕES E COMENTÁRIOS DO RCA */}
-              <Card>
-                <div className="border-b border-slate-50 pb-3 mb-4.5">
-                  <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                    Observações Estratégicas
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  <textarea
-                    rows={4}
-                    value={selectedClient.observations}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setClients(prev => prev.map(c => c.id === selectedClient.id ? { ...c, observations: val } : c));
-                    }}
-                    className="w-full text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 focus:outline-hidden focus:border-blue-500 font-medium text-slate-700 leading-relaxed"
-                    placeholder="Escreva observações comerciais estratégicas para este cliente..."
-                  />
-                  <p className="text-[10px] text-slate-400 leading-relaxed font-bold">
-                    * Essas observações são salvas instantaneamente em cache para compilação comercial.
-                  </p>
-                </div>
-              </Card>
-
-              {/* 8. CLAUDE INTELLIGENCE HUB (Aguardando Ativação do Claude em Fases Futuras) */}
-              <div className="bg-indigo-50/50 border border-indigo-150 rounded-2xl p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles className="h-4 w-4 text-indigo-700 animate-pulse" />
-                    Claude Commercial Hub
-                  </span>
-                  <span className="bg-indigo-100 text-indigo-800 text-[9px] font-black px-2 py-0.5 rounded border border-indigo-200 uppercase tracking-wider">
-                    Fase 4
-                  </span>
-                </div>
-                
-                <p className="text-[11px] text-indigo-950 font-bold leading-normal">
-                  Este espaço foi estruturado para receber o processamento cognitivo do Claude AI de forma nativa na próxima fase de desenvolvimento.
-                </p>
-
-                <div className="space-y-2 pt-1">
-                  <div className="p-2.5 bg-white rounded-xl border border-indigo-100 text-[10px] font-bold text-slate-400 italic">
-                    📌 Claude AI: Resumo do Estabelecimento (Aguardando Ativação)
-                  </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-indigo-100 text-[10px] font-bold text-slate-400 italic">
-                    🔍 Claude AI: Gaps & Insights de Upsell (Aguardando Ativação)
-                  </div>
-                  <div className="p-2.5 bg-white rounded-xl border border-indigo-100 text-[10px] font-bold text-slate-400 italic">
-                    ⚖ Claude AI: Comparador de Históricos (Aguardando Ativação)
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </motion.div>
+        <WorkspaceComercial
+          client={selectedClient}
+          onBack={() => setSelectedClientId(null)}
+          setClients={setClients}
+          rcas={rcas}
+          triggerToast={triggerToast}
+          handleTriggerMockAnalysis={handleTriggerMockAnalysis}
+          handleOpenEditModal={handleOpenEditModal}
+          setIsConversionModalOpen={setIsConversionModalOpen}
+        />
       ) : (
         // ----------------- TELA PRINCIPAL (LISTAGEM DE CLIENTES) -----------------
         <div className="space-y-6">
@@ -2387,13 +1764,27 @@ export default function Clientes() {
                       >
                         <div className="space-y-1.5">
                           <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <h4 className="text-sm font-extrabold text-slate-800 leading-snug group-hover:text-blue-900 transition-colors truncate">
+                            <div className="min-w-0 flex-1">
+                              <h4 className="text-sm font-extrabold text-slate-800 leading-snug group-hover:text-blue-900 transition-colors flex flex-wrap items-center gap-1.5">
                                 {client.fantasyName || client.name}
+                                {client.statusConta && (
+                                  <span className={`text-[8px] font-black uppercase px-1 py-0.5 rounded border leading-none shrink-0 ${
+                                    client.statusConta === 'Prospect Radar' ? 'text-amber-800 bg-amber-50 border-amber-200' :
+                                    client.statusConta === 'Cliente Convertido' ? 'text-emerald-800 bg-emerald-50 border-emerald-200' :
+                                    'text-blue-800 bg-blue-50 border-blue-200'
+                                  }`}>
+                                    {client.statusConta}
+                                  </span>
+                                )}
                               </h4>
                               <span className="text-[10px] text-slate-400 font-bold block truncate">
                                 Razão: {client.name}
                               </span>
+                              {(client.id_radar || client.id_erp) && (
+                                <span className="text-[9px] text-slate-500 font-mono block mt-0.5">
+                                  {client.id_radar ? `RAD: ${client.id_radar}` : ''} {client.id_erp ? `| ERP: ${client.id_erp}` : ''}
+                                </span>
+                              )}
                             </div>
                             <Badge variant={statusVariantMap[client.status]}>{client.status}</Badge>
                           </div>
@@ -2567,6 +1958,34 @@ export default function Clientes() {
                   value={formResponsibleRole}
                   onChange={(e) => setFormResponsibleRole(e.target.value)}
                 />
+              </div>
+
+              {/* Seção Modelo de Conta e Ciclo de Vida */}
+              <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-150 space-y-4">
+                <span className="text-[10px] uppercase font-black text-slate-500 tracking-wider block">Ciclo de Vida Comercial (Configuração de Conta)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Select
+                    label="Status da Conta (Lifecycle)"
+                    options={[
+                      { value: 'Prospect Radar', label: 'Prospect Radar (Origem Radar, Sem ID ERP)' },
+                      { value: 'Cliente Convertido', label: 'Cliente Convertido (Origem Radar, Com ID ERP)' },
+                      { value: 'Cliente Base', label: 'Cliente Base (Origem Direta ERP, Sem ID Radar)' },
+                    ]}
+                    value={formStatusConta}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setFormStatusConta(val);
+                    }}
+                  />
+                  {(formStatusConta === 'Cliente Base' || formStatusConta === 'Cliente Convertido') && (
+                    <Input
+                      label="Código ID ERP Oficial"
+                      placeholder="Ex: ERP-4455"
+                      value={formIdErp}
+                      onChange={(e) => setFormIdErp(e.target.value)}
+                    />
+                  )}
+                </div>
               </div>
 
               <div>
@@ -2761,6 +2180,25 @@ export default function Clientes() {
                     value={editResponsibleRole}
                     onChange={(e) => setEditResponsibleRole(e.target.value)}
                   />
+
+                  {/* Seção IDs Operacionais da Conta */}
+                  <div className="bg-slate-50 p-4.5 rounded-xl border border-slate-150 col-span-1 sm:col-span-2 space-y-3">
+                    <span className="text-[10px] uppercase font-black text-slate-500 tracking-wider block">Identificadores Oficiais (Modelo de Conta)</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input
+                        label="ID Radar (Identificador de Origem)"
+                        placeholder="Ex: RAD-123"
+                        value={editIdRadar}
+                        onChange={(e) => setEditIdRadar(e.target.value)}
+                      />
+                      <Input
+                        label="ID ERP C-Trade"
+                        placeholder="Ex: ERP-4455"
+                        value={editIdErp}
+                        onChange={(e) => setEditIdErp(e.target.value)}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -3084,6 +2522,159 @@ export default function Clientes() {
                 </div>
               </div>
 
+            </div>
+          </Modal>
+
+          {/* Modal de Conversão de Prospect em Cliente ERP */}
+          {selectedClient && (
+            <Modal
+              isOpen={isConversionModalOpen}
+              onClose={() => {
+                setIsConversionModalOpen(false);
+                setConversionIdErp('');
+              }}
+              title={`Evoluir Conta: ${selectedClient.fantasyName}`}
+              size="md"
+              footer={
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setIsConversionModalOpen(false);
+                      setConversionIdErp('');
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleConvertProspect(selectedClient.id, conversionIdErp || `ERP-${Math.floor(1000 + Math.random() * 9000)}`)}
+                  >
+                    Confirmar Conversão & Vincular ERP
+                  </Button>
+                </>
+              }
+            >
+              <div className="space-y-4 font-sans text-xs">
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3.5 space-y-1.5 font-sans">
+                  <h4 className="font-black text-xs uppercase flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-amber-700" />
+                    Fluxo de Homologação de Contas
+                  </h4>
+                  <p className="leading-normal font-medium text-[11px]">
+                    Este prospect comercial foi identificado pelo Radar C-Trade (ID Radar: <strong>{selectedClient.id_radar || 'Não Gerado'}</strong>).
+                    Ao vinculá-lo a um ID ERP, seu ciclo de vida comercial é atualizado para <strong>Cliente Convertido</strong>.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Input
+                    label="Código ID ERP Oficial *"
+                    placeholder="Ex: ERP-4455, ERP-1200, etc."
+                    value={conversionIdErp}
+                    onChange={(e) => setConversionIdErp(e.target.value)}
+                  />
+                  <p className="text-[10px] text-slate-400 font-bold italic">
+                    * Caso deixe em branco, um ID ERP oficial simulado será gerado automaticamente pelo motor comercial.
+                  </p>
+                </div>
+              </div>
+            </Modal>
+          )}
+
+          {/* Modal do Simulador de Entrada de Dados (Planilhas & ERP) */}
+          <Modal
+            isOpen={isImportModalOpen}
+            onClose={() => setIsImportModalOpen(false)}
+            title="Assistente do Pipeline de Entrada de Dados (Data Intake Simulator)"
+            size="lg"
+          >
+            <div className="space-y-4 font-sans text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1">
+                <span className="text-[10px] uppercase font-black text-slate-400 tracking-wider">Mecanismo de Validação & Sincronização</span>
+                <p className="text-slate-600 font-medium leading-relaxed">
+                  Para auditar o <strong>Modelo de Contas e Ciclo de Vida</strong> sem a necessidade de conexões externas reais, este assistente executa o pipeline oficial de importação contra nossa base local. Selecione um cenário para verificar como as regras de negócio tratam os dados:
+                </p>
+              </div>
+
+              <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                {/* Cenário 1 */}
+                <div className="border border-slate-200 hover:border-blue-200 rounded-xl p-4 bg-white shadow-3xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-1.5 py-0.5 rounded leading-none">
+                        Cenário 1: Evolução por CNPJ Match
+                      </span>
+                    </div>
+                    <h5 className="font-black text-slate-800 text-xs mt-1">Planilha de Vendas Gero Ipanema</h5>
+                    <p className="text-slate-500 font-medium leading-normal text-[11px]">
+                      Gero Ipanema já existe como <strong>Prospect Radar</strong>. A planilha possui correspondência exata de CNPJ. O pipeline atualizará o registro existente e vinculará o ID ERP <strong>ERP-4455</strong>, evoluindo o status para <strong>Cliente Convertido</strong>. <strong className="text-emerald-700">Evita duplicação de contas.</strong>
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleSimulateImport('gero')}
+                    className="shrink-0"
+                  >
+                    Simular Importação (.xlsx)
+                  </Button>
+                </div>
+
+                {/* Cenário 2 */}
+                <div className="border border-slate-200 hover:border-blue-200 rounded-xl p-4 bg-white shadow-3xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-blue-100 text-blue-800 text-[9px] font-black uppercase px-1.5 py-0.5 rounded leading-none">
+                        Cenário 2: Cliente Base Puro (Sem Radar)
+                      </span>
+                    </div>
+                    <h5 className="font-black text-slate-800 text-xs mt-1">Planilha de Clientes ERP - Restaurante Cipriani</h5>
+                    <p className="text-slate-500 font-medium leading-normal text-[11px]">
+                      Importa o renomado restaurante Cipriani (Copacabana Palace). Ele não possui ID Radar prévio. O pipeline registrará a conta diretamente como <strong>Cliente Base</strong> com ID ERP <strong>ERP-5566</strong>.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleSimulateImport('cipriani')}
+                    className="shrink-0"
+                  >
+                    Simular Importação (.xlsx)
+                  </Button>
+                </div>
+
+                {/* Cenário 3 */}
+                <div className="border border-slate-200 hover:border-blue-200 rounded-xl p-4 bg-white shadow-3xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-slate-100 text-slate-800 text-[9px] font-black uppercase px-1.5 py-0.5 rounded leading-none">
+                        Cenário 3: Sincronização de Ficha (Sem Duplicar)
+                      </span>
+                    </div>
+                    <h5 className="font-black text-slate-800 text-xs mt-1">Sincronização de Cadastro - Babbo Osteria</h5>
+                    <p className="text-slate-500 font-medium leading-normal text-[11px]">
+                      Babbo Osteria é o principal cliente na base. A planilha traz o telefone atualizado para <strong>(21) 99999-8888</strong>. O pipeline identifica o CNPJ idêntico, atualiza a ficha e gera um log auditável em seu histórico sem duplicar o cadastro.
+                    </p>
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => handleSimulateImport('babbo')}
+                    className="shrink-0"
+                  >
+                    Simular Sincronização (.xlsx)
+                  </Button>
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100 pt-3 flex justify-end">
+                <Button variant="secondary" size="sm" onClick={() => setIsImportModalOpen(false)}>
+                  Fechar Simulador
+                </Button>
+              </div>
             </div>
           </Modal>
         </div>

@@ -16,7 +16,8 @@ export type PageId =
   | 'usuarios'
   | 'biblioteca'
   | 'auditoria'
-  | 'pipeline';
+  | 'pipeline'
+  | 'cadastros';
 
 export interface MenuItem {
   id: PageId;

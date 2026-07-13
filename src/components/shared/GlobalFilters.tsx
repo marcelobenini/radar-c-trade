@@ -7,6 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { Calendar, Search, Eraser, Filter, MapPin, Users, Tag, Briefcase, SlidersHorizontal, ChevronDown, ChevronUp } from 'lucide-react';
 import SearchableMultiSelect from './SearchableMultiSelect';
 import { REAL_CLIENTS, REAL_PRODUCTS } from '../../data/realData';
+import { getPlatformConfig } from '../../utils/appearance';
 
 export interface SessionFilters {
   estados: string[];
@@ -95,20 +96,29 @@ export function matchesScoreRange(score: number, filterValue: string): boolean {
 export default function GlobalFilters({ sessionFilters, setSessionFilters }: GlobalFiltersProps) {
   const [isOpen, setIsOpen] = useState(true);
 
-  // Load RCAs dynamically from localStorage (fallback is the same across the application)
+  // Load RCAs dynamically from platform configuration
   const rcas = useMemo(() => {
-    const saved = localStorage.getItem('ctrade_rcas');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return [
-      { id: 'rca-marcelo', name: 'RCA Marcelo Baquero', regionalId: 'reg-sudeste', active: true },
-      { id: 'rca-amanda', name: 'RCA Amanda Souza', regionalId: 'reg-sul', active: true },
-      { id: 'rca-pedro', name: 'RCA Pedro Santos', regionalId: 'reg-nordeste', active: true },
-      { id: 'rca-lucas', name: 'RCA Lucas Oliveira', regionalId: 'reg-centro-oeste', active: true },
+    const config = getPlatformConfig();
+    return config.rcas?.filter(r => r.active) || [
+      { id: 'rca-marcelo', name: 'RCA Marcelo Baquero', active: true },
+      { id: 'rca-amanda', name: 'RCA Amanda Souza', active: true },
+      { id: 'rca-pedro', name: 'RCA Pedro Santos', active: true },
+      { id: 'rca-lucas', name: 'RCA Lucas Oliveira', active: true },
     ];
+  }, []);
+
+  // Compute dynamic states from platform configuration
+  const estadosOptions = useMemo(() => {
+    const config = getPlatformConfig();
+    const activeStates = config.states?.filter(s => s.active) || [];
+    if (activeStates.length > 0) {
+      return activeStates.map(s => {
+        const match = s.name.match(/\(([^)]+)\)/);
+        const uf = match ? match[1] : s.id.replace('est-', '').toUpperCase();
+        return { value: uf, label: s.name };
+      });
+    }
+    return ESTADOS_BRASILEIROS;
   }, []);
 
   // Compute dynamic state-city relationship
@@ -155,20 +165,31 @@ export default function GlobalFilters({ sessionFilters, setSessionFilters }: Glo
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [availableCitiesAndStates, sessionFilters.estados]);
 
-  // Load official C-Trade categories from product database
+  // Load official C-Trade categories from platform configuration or fallbacks
   const categoriesOptions = useMemo(() => {
+    const config = getPlatformConfig();
+    const activeCategories = config.categories?.filter(c => c.active).map(c => c.name) || [];
+    if (activeCategories.length > 0) {
+      return activeCategories.map(c => ({ value: c, label: c }));
+    }
     const fromProducts = Array.from(new Set(REAL_PRODUCTS.map(p => p.category))).filter(Boolean).sort();
     return fromProducts.map(c => ({ value: c, label: c }));
   }, []);
 
-  // Dependente: Ao escolher uma Categoria, listar apenas as Marcas que possuem produtos naquela categoria.
+  // Load official C-Trade brands from platform configuration or fallbacks
   const marcasOptions = useMemo(() => {
+    const config = getPlatformConfig();
+    const activeBrands = config.brands?.filter(b => b.active).map(b => b.name) || [];
+
     let filteredProducts = REAL_PRODUCTS;
     if (sessionFilters.categorias && sessionFilters.categorias.length > 0) {
       filteredProducts = REAL_PRODUCTS.filter(p => sessionFilters.categorias.includes(p.category));
     }
     const brands = Array.from(new Set(filteredProducts.map(p => p.brand))).filter(Boolean).sort();
-    return brands.map(b => ({ value: b, label: b }));
+    const finalBrands = activeBrands.length > 0
+      ? brands.filter(b => activeBrands.includes(b))
+      : brands;
+    return finalBrands.map(b => ({ value: b, label: b }));
   }, [sessionFilters.categorias]);
 
   // Dependente: Ao escolher uma Marca, listar apenas os Produtos pertencentes àquela Marca e Categoria.
@@ -184,8 +205,13 @@ export default function GlobalFilters({ sessionFilters, setSessionFilters }: Glo
     return names.map(p => ({ value: p, label: p }));
   }, [sessionFilters.categorias, sessionFilters.marcas]);
 
-  // Segment options
+  // Load official culinary segments from platform configuration
   const segmentsOptions = useMemo(() => {
+    const config = getPlatformConfig();
+    const activeSegments = config.segments?.filter(s => s.active).map(s => s.name) || [];
+    if (activeSegments.length > 0) {
+      return activeSegments.map(s => ({ value: s, label: s }));
+    }
     const fromClients = Array.from(new Set(REAL_CLIENTS.map(c => c.segment))).filter(Boolean);
     const defaults = ['Italiano', 'Pizzaria', 'Hotel', 'Resort', 'Casual Dining', 'Fino', 'Bistrô', 'Trattoria'];
     const combined = Array.from(new Set([...fromClients, ...defaults])).sort();
@@ -320,7 +346,7 @@ export default function GlobalFilters({ sessionFilters, setSessionFilters }: Glo
             {/* 2. ESTADO */}
             <SearchableMultiSelect
               label="2. Estado (UF)"
-              options={ESTADOS_BRASILEIROS}
+              options={estadosOptions}
               selectedValues={sessionFilters.estados}
               onChange={(vals) => setSessionFilters(prev => ({ ...prev, estados: vals, cidades: [] }))}
               placeholder="Todos os Estados..."

@@ -221,6 +221,70 @@ Se o arquivo fornecido não for de fato um cardápio ou for de difícil leitura,
   }
 });
 
+// 3. API: Dynamic Integration Catalogs for Claude
+app.get('/api/integration/catalogs', (req, res) => {
+  res.json({
+    success: true,
+    timestamp: new Date().toISOString(),
+    segments: [
+      { id: 'seg-italiano', name: 'Italiano / Trattoria', active: true },
+      { id: 'seg-pizzaria', name: 'Pizzaria', active: true },
+      { id: 'seg-hamburgueria', name: 'Hamburgueria', active: true },
+      { id: 'seg-churrascaria', name: 'Churrascaria', active: true },
+      { id: 'seg-hotel', name: 'Hotel / Pousada', active: true },
+      { id: 'seg-japones', name: 'Japonês', active: true }
+    ],
+    categories: [
+      { id: 'cat-farinha', name: 'Farinhas Especiais', active: true },
+      { id: 'cat-tomate', name: 'Tomates Pelados', active: true },
+      { id: 'cat-azeite', name: 'Azeites de Oliva', active: true },
+      { id: 'cat-queijo', name: 'Queijos Especiais', active: true },
+      { id: 'cat-embutidos', name: 'Embutidos Finos', active: true }
+    ],
+    brands: [
+      { id: 'brd-caputo', name: 'Caputo Tipo 00', active: true },
+      { id: 'brd-mutti', name: 'Mutti', active: true },
+      { id: 'brd-monini', name: 'Monini', active: true },
+      { id: 'brd-grana', name: 'Grana Padano DOP', active: true },
+      { id: 'brd-negroni', name: 'Negroni fatiados', active: true }
+    ]
+  });
+});
+
+// 4. API: Intake Webhook for Claude Payloads
+app.post('/api/integration/intake', (req, res) => {
+  try {
+    const { source, batch_name, data } = req.body;
+
+    if (!source || !data || !Array.isArray(data)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Payload inválido. Certifique-se de preencher "source" e o array "data".'
+      });
+    }
+
+    // Simulate validation and schema parsing
+    const processedCount = data.length;
+    const batchId = `BAT-CLAUDE-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    res.json({
+      success: true,
+      batchId,
+      source,
+      batch_name: batch_name || 'Lote de Ingestão Claude Automatizado',
+      recordsProcessed: processedCount,
+      elapsedTimeMs: Math.floor(80 + Math.random() * 100),
+      status: 'Queued for Curation',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erro ao processar ingestão externa.'
+    });
+  }
+});
+
 // Serve frontend assets and listen
 async function bootstrap() {
   if (process.env.NODE_ENV !== 'production') {

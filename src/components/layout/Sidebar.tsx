@@ -48,7 +48,8 @@ const pagePermissions: Record<PageId, { module: string; action: string }> = {
   usuarios: { module: 'Usuários', action: 'Visualizar' },
   configuracoes: { module: 'Configurações', action: 'Visualizar' },
   auditoria: { module: 'Auditoria', action: 'Visualizar Auditoria' },
-  pipeline: { module: 'Central de Cardápios', action: 'Visualizar' }
+  pipeline: { module: 'Central de Cardápios', action: 'Visualizar' },
+  cadastros: { module: 'Configurações', action: 'Visualizar' }
 };
 
 export default function Sidebar({
@@ -64,99 +65,59 @@ export default function Sidebar({
   // Menu Definition structured by operational logic and data flow
   const menuGroups = [
     {
-      title: 'Painel Executivo',
+      title: 'RADAR COMERCIAL',
       items: [
         {
           id: 'visao_geral' as PageId,
-          title: 'Visão Geral',
-          subtitle: 'Dashboard Principal',
+          title: 'Dashboard',
+          subtitle: 'Visão Geral Executiva',
           icon: Home,
+        },
+        {
+          id: 'clientes' as PageId,
+          title: 'Clientes',
+          subtitle: 'Fichas e Atendimentos',
+          icon: Building2,
+        },
+        {
+          id: 'produtos' as PageId,
+          title: 'Produtos',
+          subtitle: 'Portfólio C-Trade',
+          icon: Package,
         },
         {
           id: 'relatorios' as PageId,
           title: 'Relatórios',
-          subtitle: 'Resultados e Insights',
+          subtitle: 'Resultados e Métricas',
           icon: FileText,
         },
       ]
     },
     {
-      title: 'Mapeamento & Cadastros',
+      title: 'ADMINISTRAÇÃO',
       items: [
         {
-          id: 'pipeline' as PageId,
-          title: 'Pipeline de Entrada',
-          subtitle: 'Ingestão e Validação',
+          id: 'cadastros' as PageId,
+          title: 'Cadastros',
+          subtitle: 'Metadados e Lotes',
           icon: Database,
-        },
-        {
-          id: 'clientes' as PageId,
-          title: 'Clientes',
-          subtitle: 'Base Comercial',
-          icon: Building2,
-        },
-        {
-          id: 'biblioteca' as PageId,
-          title: 'Cardápios',
-          subtitle: 'Biblioteca de Cardápios',
-          icon: Library,
-        },
-        {
-          id: 'produtos' as PageId,
-          title: 'Produtos',
-          subtitle: 'Portfólio CTrade',
-          icon: Package,
-        },
-      ]
-    },
-    {
-      title: 'Inteligência Comercial',
-      items: [
-        {
-          id: 'inteligencia' as PageId,
-          title: 'Inteligência Comercial',
-          subtitle: 'Motor de Cruzamento',
-          icon: Brain,
-        },
-        {
-          id: 'oportunidades' as PageId,
-          title: 'Central de Oportunidades',
-          subtitle: 'Opportunity Center',
-          icon: Briefcase,
-        },
-        {
-          id: 'radar' as PageId,
-          title: 'Radar de Leads',
-          subtitle: 'Filtro e Localização',
-          icon: Target,
-        },
-      ]
-    },
-    {
-      title: 'Administração',
-      items: [
-        {
-          id: 'integracoes' as PageId,
-          title: 'Integrações',
-          subtitle: 'Conexão RD CRM',
-          icon: RefreshCw,
         },
         {
           id: 'usuarios' as PageId,
           title: 'Usuários',
-          subtitle: 'Controle de Acessos',
+          subtitle: 'Perfis e Permissões',
           icon: Users,
         },
         {
-          id: 'auditoria' as PageId,
-          title: 'Auditoria',
-          subtitle: 'Histórico Operacional',
-          icon: ShieldCheck,
+          id: 'integracoes' as PageId,
+          title: 'Integrações',
+          subtitle: 'Claude, RD Station',
+          icon: RefreshCw,
         },
         {
           id: 'configuracoes' as PageId,
           title: 'Configurações',
-          subtitle: 'Central de Parâmetros',
+          subtitle: 'Parâmetros Gerais',
           icon: Settings,
         },
       ]

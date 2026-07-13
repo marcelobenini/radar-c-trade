@@ -27,6 +27,7 @@ import Usuarios from './pages/Usuarios';
 import Biblioteca from './pages/Biblioteca';
 import Auditoria from './pages/Auditoria';
 import PipelineIntake from './pages/PipelineIntake';
+import Cadastros from './pages/Cadastros';
 
 // Skeletons Imports
 import {
@@ -51,7 +52,8 @@ const pagePermissions: Record<PageId, { module: string; action: string }> = {
   usuarios: { module: 'Usuários', action: 'Visualizar' },
   configuracoes: { module: 'Configurações', action: 'Visualizar' },
   auditoria: { module: 'Auditoria', action: 'Visualizar Auditoria' },
-  pipeline: { module: 'Central de Cardápios', action: 'Visualizar' }
+  pipeline: { module: 'Central de Cardápios', action: 'Visualizar' },
+  cadastros: { module: 'Configurações', action: 'Visualizar' }
 };
 
 function AccessDenied({ onGoBack }: { onGoBack: () => void }) {
@@ -154,6 +156,7 @@ export default function App() {
       case 'integracoes':
       case 'configuracoes':
       case 'auditoria':
+      case 'cadastros':
         return <InteligenciaSkeleton />;
       default:
         return <VisaoGeralSkeleton />;
@@ -189,6 +192,8 @@ export default function App() {
         return <Auditoria />;
       case 'pipeline':
         return <PipelineIntake />;
+      case 'cadastros':
+        return <Cadastros />;
       default:
         return <VisaoGeral />;
     }

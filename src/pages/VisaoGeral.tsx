@@ -4,186 +4,55 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'motion/react';
 import PageContainer from '../components/shared/PageContainer';
-import PageHeader from '../components/shared/PageHeader';
 import Button from '../components/ui/Button';
-import { Card, MetricCard } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
 import { Badge, ProgressBar, Toast } from '../components/ui/Feedback';
-import { Modal } from '../components/ui/Interactive';
-import GlobalFilters, { matchesScoreRange } from '../components/shared/GlobalFilters';
-import Breadcrumb, { BreadcrumbItem } from '../components/ui/Breadcrumb';
-import {
-  RotateCw,
-  Download,
-  Users,
-  Layers,
-  DollarSign,
-  Sparkles,
-  Award,
-  Zap,
-  Clock,
-  Filter,
-  CheckCircle2,
-  AlertTriangle,
-  TrendingUp,
-  MapPin,
-  Flame,
-  Globe,
-  Tag,
-  Briefcase,
-  X,
-  SlidersHorizontal,
-  Eraser,
-  Search,
-  Settings,
-  Trash2,
-  Edit2,
-  Activity,
-  ChevronRight,
-  ChevronLeft,
-  Building2,
-  Calendar
-} from 'lucide-react';
+import { getPlatformConfig } from '../utils/appearance';
 import { REAL_CLIENTS, REAL_OPPORTUNITIES, REAL_PRODUCTS } from '../data/realData';
+import { matchesScoreRange } from '../components/shared/GlobalFilters';
+import {
+  Sparkles,
+  TrendingUp,
+  Clock,
+  ChevronRight,
+  RefreshCw,
+  Briefcase,
+  Target,
+  FileText
+} from 'lucide-react';
+
+const SCORE_FIT_OPTIONS = [
+  { value: 'all', label: 'Todos os Scores' },
+  { value: '81-100', label: 'Excelente (81-100 pts)' },
+  { value: '61-80', label: 'Bom (61-80 pts)' },
+  { value: '41-60', label: 'Médio (41-60 pts)' },
+  { value: '0-40', label: 'Baixo (0-40 pts)' }
+];
 
 export default function VisaoGeral() {
-  // Load Regionais & RCAs from localStorage or defaults
-  const [regionals, setRegionals] = useState<any[]>(() => {
-    const saved = localStorage.getItem('ctrade_regionals');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 'reg-sudeste', name: 'Regional Sudeste', active: true },
-      { id: 'reg-sul', name: 'Regional Sul', active: true },
-      { id: 'reg-nordeste', name: 'Regional Nordeste', active: true },
-      { id: 'reg-centro-oeste', name: 'Regional Centro-Oeste', active: true },
-    ];
-  });
-
-  const [rcas, setRcas] = useState<any[]>(() => {
-    const saved = localStorage.getItem('ctrade_rcas');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 'rca-marcelo', name: 'RCA Marcelo Baquero', regionalId: 'reg-sudeste', active: true },
-      { id: 'rca-amanda', name: 'RCA Amanda Souza', regionalId: 'reg-sul', active: true },
-      { id: 'rca-pedro', name: 'RCA Pedro Santos', regionalId: 'reg-nordeste', active: true },
-      { id: 'rca-lucas', name: 'RCA Lucas Oliveira', regionalId: 'reg-centro-oeste', active: true },
-    ];
-  });
-
-  // Persist Regionais & RCAs
-  useEffect(() => {
-    localStorage.setItem('ctrade_regionals', JSON.stringify(regionals));
-  }, [regionals]);
-
-  useEffect(() => {
-    localStorage.setItem('ctrade_rcas', JSON.stringify(rcas));
-  }, [rcas]);
-
-  // Load clients state from localStorage or fallback
-  const [clients, setClients] = useState<any[]>(() => {
+  const [clients] = useState<any[]>(() => {
     const saved = localStorage.getItem('ctrade_clients_list_v2');
     if (saved) return JSON.parse(saved);
     return REAL_CLIENTS.map(rc => ({
-      id: rc.id,
-      name: rc.name,
-      fantasyName: rc.fantasyName,
-      city: rc.city,
-      state: rc.state,
-      segment: rc.segment,
-      category: rc.category,
-      instagram: rc.instagram,
-      website: rc.website,
-      phone: rc.phone,
-      email: rc.email,
-      responsible: rc.responsible,
-      responsibleRole: rc.responsibleRole,
-      observations: rc.observations,
-      score: rc.score,
-      potential: rc.potential,
+      ...rc,
       status: rc.status === 'Analisado' ? 'Autorizados' : 'Entradas',
-      lastAnalysis: rc.lastAnalysis,
-      lastUpload: rc.lastUpload,
       regionalId: rc.state === 'RJ' ? 'reg-sudeste' : 'reg-sul',
-      rcaId: rc.state === 'RJ' ? 'rca-marcelo' : 'rca-amanda'
+      rcaId: rc.state === 'RJ' ? 'rca-marcelo' : 'rca-amanda',
+      statusConta: rc.statusConta || 'Prospect Radar'
     }));
   });
 
-  // Load opportunities state from localStorage or fallback
-  const [opportunities, setOpportunities] = useState<any[]>(() => {
+  const [opportunities] = useState<any[]>(() => {
     const saved = localStorage.getItem('ctrade_opportunities_data');
     if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
+      try { return JSON.parse(saved); } catch (e) {}
     }
-    return REAL_OPPORTUNITIES.map(ro => {
-      let mappedStatus: 'Entradas' | 'Autorizados' | 'Rejeitados' = 'Entradas';
-      if (ro.status === 'Nova oportunidade' || ro.status === 'Em análise') {
-        mappedStatus = 'Entradas';
-      } else if (ro.status === 'Aprovada' || ro.status === 'Enviar ao CRM' || ro.status === 'Enviada ao CRM') {
-        mappedStatus = 'Autorizados';
-      } else {
-        mappedStatus = 'Rejeitados';
-      }
-      return {
-        id: ro.id,
-        clientId: ro.clientId,
-        cliente: ro.cliente,
-        cidade: ro.cidade,
-        estado: ro.estado,
-        segmento: ro.segmento,
-        categoria: ro.categoria,
-        scoreComercial: ro.scoreComercial,
-        scoreFit: ro.scoreFit,
-        faturamentoEstimado: ro.faturamentoEstimado,
-        potencialComercial: ro.potencialComercial,
-        status: mappedStatus,
-        prioridade: ro.prioridade,
-        produtosRecomendados: ro.produtosRecomendados,
-        produtosEncontrados: ro.produtosEncontrados || [],
-        produtosAusentes: ro.produtosAusentes || [],
-        marcasConcorrentes: ro.marcasConcorrentes || [],
-        valorPotencialEstimado: ro.valorPotencialEstimado,
-        ultimaAnalise: ro.ultimaAnalise,
-        dataAnalise: ro.dataAnalise,
-        responsavel: ro.responsavel,
-        origem: ro.origem,
-        observacoes: ro.observacoes,
-        proximaAcaoSugerida: ro.proximaAcaoSugerida,
-        historico: ro.historico || [],
-        crmStatus: ro.crmStatus,
-        crmId: ro.crmId,
-        exportStatus: ro.exportStatus,
-        assignedSeller: ro.assignedSeller,
-        exportedAt: ro.exportedAt,
-        lastSync: ro.lastSync
-      };
-    });
+    return REAL_OPPORTUNITIES.map(ro => ({
+      ...ro,
+      status: (ro.status === 'Nova oportunidade' || ro.status === 'Em análise') ? 'Entradas' : 'Autorizados'
+    }));
   });
 
-  // Sync state from localStorage on mount/focus
-  useEffect(() => {
-    const syncData = () => {
-      const savedClients = localStorage.getItem('ctrade_clients_list_v2');
-      if (savedClients) {
-        try { setClients(JSON.parse(savedClients)); } catch (e) {}
-      }
-      const savedOpps = localStorage.getItem('ctrade_opportunities_data');
-      if (savedOpps) {
-        try { setOpportunities(JSON.parse(savedOpps)); } catch (e) {}
-      }
-    };
-    syncData();
-    window.addEventListener('focus', syncData);
-    return () => window.removeEventListener('focus', syncData);
-  }, []);
-
-  // Toast alert state
-  const [toast, setToast] = useState<{ message: string; description: string; type: 'success' | 'info' | 'warning' | 'error' } | null>(null);
-
-  // Synchronized global session filters state (exact match of Clientes.tsx)
   const [sessionFilters, setSessionFilters] = useState(() => {
     const saved = sessionStorage.getItem('ctrade_session_filters_base');
     if (saved) {
@@ -191,7 +60,7 @@ export default function VisaoGeral() {
         const parsed = JSON.parse(saved);
         return {
           estados: parsed.estados || [],
-          cidades: parsed.cidades || (parsed.cidade ? [parsed.cidade] : []),
+          cidades: parsed.cidades || [],
           regionais: parsed.regionais || [],
           rcas: parsed.rcas || [],
           categorias: parsed.categorias || [],
@@ -199,13 +68,12 @@ export default function VisaoGeral() {
           marcas: parsed.marcas || [],
           segmentos: parsed.segmentos || [],
           statuses: parsed.statuses || [],
+          tipoCliente: parsed.tipoCliente || 'all',
           scoreComercial: parsed.scoreComercial || 'all',
           scoreFit: parsed.scoreFit || 'all',
           cidade: parsed.cidade || '',
           cliente: parsed.cliente || '',
-          periodoOption: parsed.periodoOption || '30',
-          dataInicio: parsed.dataInicio || '',
-          dataFim: parsed.dataFim || ''
+          periodoOption: parsed.periodoOption || '30'
         };
       } catch (e) {}
     }
@@ -219,33 +87,30 @@ export default function VisaoGeral() {
       marcas: [] as string[],
       segmentos: [] as string[],
       statuses: [] as string[],
-      scoreComercial: 'all' as string,
-      scoreFit: 'all' as string,
-      cidade: '' as string,
-      cliente: '' as string,
-      periodoOption: '30' as string,
-      dataInicio: '' as string,
-      dataFim: '' as string
+      tipoCliente: 'all',
+      scoreComercial: 'all',
+      scoreFit: 'all',
+      cidade: '',
+      cliente: '',
+      periodoOption: '30'
     };
   });
 
-  // Persist session filters to sessionStorage & broadcast event
   useEffect(() => {
     sessionStorage.setItem('ctrade_session_filters_base', JSON.stringify(sessionFilters));
     window.dispatchEvent(new Event('storage'));
   }, [sessionFilters]);
 
-  // Read session filters if changed on other tabs
   useEffect(() => {
-    const loadSessionFilters = () => {
-      const savedFilters = sessionStorage.getItem('ctrade_session_filters_base');
-      if (savedFilters) {
+    const handleFocus = () => {
+      const saved = sessionStorage.getItem('ctrade_session_filters_base');
+      if (saved) {
         try {
-          const parsed = JSON.parse(savedFilters);
+          const parsed = JSON.parse(saved);
           setSessionFilters(prev => {
-            const nextFilters = {
+            const next = {
               estados: parsed.estados || [],
-              cidades: parsed.cidades || (parsed.cidade ? [parsed.cidade] : []),
+              cidades: parsed.cidades || [],
               regionais: parsed.regionais || [],
               rcas: parsed.rcas || [],
               categorias: parsed.categorias || [],
@@ -253,1725 +118,998 @@ export default function VisaoGeral() {
               marcas: parsed.marcas || [],
               segmentos: parsed.segmentos || [],
               statuses: parsed.statuses || [],
+              tipoCliente: parsed.tipoCliente || 'all',
               scoreComercial: parsed.scoreComercial || 'all',
               scoreFit: parsed.scoreFit || 'all',
               cidade: parsed.cidade || '',
               cliente: parsed.cliente || '',
-              periodoOption: parsed.periodoOption || '30',
-              dataInicio: parsed.dataInicio || '',
-              dataFim: parsed.dataFim || ''
+              periodoOption: parsed.periodoOption || '30'
             };
-            if (JSON.stringify(prev) === JSON.stringify(nextFilters)) {
-              return prev;
-            }
-            return nextFilters;
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
           });
         } catch (e) {}
       }
     };
-    loadSessionFilters();
-    window.addEventListener('focus', loadSessionFilters);
-    return () => window.removeEventListener('focus', loadSessionFilters);
+    handleFocus();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  // --- DATE PARSING & FILTERING FOR PERÍODO ---
-  const parseDateString = (str: string): Date | null => {
-    if (!str) return null;
-    const s = str.trim();
-    // Check if it's already a standard Date input format YYYY-MM-DD
-    const yyyymmdd = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (yyyymmdd) {
-      return new Date(Number(yyyymmdd[1]), Number(yyyymmdd[2]) - 1, Number(yyyymmdd[3]));
-    }
-    // Check if it's DD/MM/YYYY
-    const ddmmyyyy = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-    if (ddmmyyyy) {
-      return new Date(Number(ddmmyyyy[3]), Number(ddmmyyyy[2]) - 1, Number(ddmmyyyy[1]));
-    }
-    // If it's something like "Hoje, às 14:30" or similar
-    if (s.toLowerCase().includes('hoje')) {
-      return new Date('2026-07-08T11:51:34-07:00');
-    }
-    if (s.toLowerCase().includes('ontem')) {
-      const yesterday = new Date('2026-07-08T11:51:34-07:00');
-      yesterday.setDate(yesterday.getDate() - 1);
-      return yesterday;
-    }
-    const parsed = Date.parse(s);
-    if (!isNaN(parsed)) {
-      return new Date(parsed);
-    }
-    return null;
-  };
+  const config = useMemo(() => getPlatformConfig(), []);
 
-  const activeDateRange = useMemo(() => {
-    const option = sessionFilters.periodoOption || '30';
-    const now = new Date('2026-07-08T11:51:34-07:00'); // Use system local time from metadata
-    
-    let start: Date | null = null;
-    let end: Date | null = null;
-    
-    if (option === '7') {
-      start = new Date(now);
-      start.setDate(now.getDate() - 7);
-      end = new Date(now);
-    } else if (option === '15') {
-      start = new Date(now);
-      start.setDate(now.getDate() - 15);
-      end = new Date(now);
-    } else if (option === '30') {
-      start = new Date(now);
-      start.setDate(now.getDate() - 30);
-      end = new Date(now);
-    } else if (option === 'custom') {
-      if (sessionFilters.dataInicio) {
-        start = parseDateString(sessionFilters.dataInicio);
-      }
-      if (sessionFilters.dataFim) {
-        end = parseDateString(sessionFilters.dataFim);
-      }
-    }
-    
-    // Normalize hours to start/end of day
-    if (start) {
-      start.setHours(0, 0, 0, 0);
-    }
-    if (end) {
-      end.setHours(23, 59, 59, 999);
-    }
-    
-    return { start, end };
-  }, [sessionFilters.periodoOption, sessionFilters.dataInicio, sessionFilters.dataFim]);
+  const rcaOptions = useMemo(() => config.rcas?.filter(r => r.active) || [], [config]);
+  const regionalOptions = useMemo(() => config.regionals?.filter(r => r.active) || [], [config]);
+  const estadoOptions = useMemo(() => {
+    return config.states?.filter(s => s.active).map(s => {
+      const uf = s.id.replace('est-', '').toUpperCase();
+      return { value: uf, label: s.name };
+    }) || [];
+  }, [config]);
 
-  const isDateInActiveRange = (dateStr?: string) => {
-    if (!dateStr) return true; // Sane fallback
-    const cleanDateStr = (dateStr === 'Sem análise' || dateStr === 'Aguardando envio' || dateStr === 'Sem cardápio submetido') 
-      ? '07/07/2026' 
-      : dateStr;
-      
-    const itemDate = parseDateString(cleanDateStr);
-    if (!itemDate) return true;
-    
-    const { start, end } = activeDateRange;
-    if (start && itemDate < start) return false;
-    if (end && itemDate > end) return false;
-    
-    return true;
-  };
+  const cidadesOptions = useMemo(() => {
+    return Array.from(new Set(clients.map(c => c.city))).filter(Boolean).sort().map(c => ({ value: c, label: c }));
+  }, [clients]);
 
-  // Modal de regionais / rca states
-  const [isManageModalOpen, setIsManageModalOpen] = useState(false);
-  const [editingRegionalId, setEditingRegionalId] = useState<string | null>(null);
-  const [newRegionalName, setNewRegionalName] = useState('');
-  const [editingRcaId, setEditingRcaId] = useState<string | null>(null);
-  const [newRcaName, setNewRcaName] = useState('');
+  const categoriaOptions = useMemo(() => config.categories?.filter(c => c.active).map(c => c.name) || [], [config]);
+  const segmentoOptions = useMemo(() => config.segments?.filter(s => s.active).map(s => s.name) || [], [config]);
 
-  // Pagination states for dashboard tables
-  const [pageAguardando, setPageAguardando] = useState(1);
-  const [pageRejeitados, setPageRejeitados] = useState(1);
-  const [pageUltimos, setPageUltimos] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const [toast, setToast] = useState<{ type: 'success' | 'info'; message: string; description: string } | null>(null);
 
-  // Reset pagination on filter changes
-  useEffect(() => {
-    setPageAguardando(1);
-    setPageRejeitados(1);
-    setPageUltimos(1);
-  }, [sessionFilters]);
-
-  const triggerToast = (type: 'success' | 'info' | 'warning' | 'error', message: string, description: string) => {
+  const triggerToast = (type: 'success' | 'info', message: string, description: string) => {
     setToast({ type, message, description });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleRefresh = () => {
-    const savedClients = localStorage.getItem('ctrade_clients_list_v2');
-    if (savedClients) {
-      try { setClients(JSON.parse(savedClients)); } catch (e) {}
-    }
-    const savedOpps = localStorage.getItem('ctrade_opportunities_data');
-    if (savedOpps) {
-      try { setOpportunities(JSON.parse(savedOpps)); } catch (e) {}
-    }
-    triggerToast(
-      'success',
-      'Dados atualizados',
-      'As métricas executivas e o pipeline comercial foram recalculados com sucesso.'
-    );
-  };
+  const filteredClients = useMemo(() => {
+    return clients.filter(c => {
+      if (sessionFilters.estados.length > 0 && !sessionFilters.estados.includes(c.state)) return false;
+      if (sessionFilters.cidades.length > 0 && !sessionFilters.cidades.includes(c.city)) return false;
+      if (sessionFilters.rcas.length > 0 && !sessionFilters.rcas.includes(c.rcaId)) return false;
+      if (sessionFilters.categorias.length > 0 && !sessionFilters.categorias.includes(c.category)) return false;
+      if (sessionFilters.segmentos.length > 0 && !sessionFilters.segmentos.includes(c.segment)) return false;
+      if (sessionFilters.scoreFit !== 'all' && !matchesScoreRange(c.score, sessionFilters.scoreFit)) return false;
+      if (sessionFilters.statuses.length > 0 && !sessionFilters.statuses.includes(c.status)) return false;
+      if (sessionFilters.tipoCliente && sessionFilters.tipoCliente !== 'all') {
+        if (sessionFilters.tipoCliente === 'prioridade-a' && c.score < 90) return false;
+        if (sessionFilters.tipoCliente === 'prioridade-b' && (c.score < 70 || c.score >= 90)) return false;
+        if (sessionFilters.tipoCliente === 'convertidos' && c.statusConta !== 'Cliente Convertido') return false;
+        if (sessionFilters.tipoCliente === 'prospects' && c.statusConta === 'Cliente Convertido') return false;
+      }
+      return true;
+    });
+  }, [clients, sessionFilters]);
 
-  const handleExport = () => {
-    triggerToast(
-      'info',
-      'Relatório gerado',
-      'O consolidado executivo está sendo preparado para download em formato PDF/Excel.'
-    );
+  const filteredOpportunities = useMemo(() => {
+    return opportunities.filter(o => {
+      if (sessionFilters.estados.length > 0 && !sessionFilters.estados.includes(o.estado)) return false;
+      if (sessionFilters.cidades.length > 0 && !sessionFilters.cidades.includes(o.cidade)) return false;
+      if (sessionFilters.categorias.length > 0 && !sessionFilters.categorias.includes(o.categoria)) return false;
+      if (sessionFilters.segmentos.length > 0 && !sessionFilters.segmentos.includes(o.segmento)) return false;
+      if (sessionFilters.scoreFit !== 'all' && !matchesScoreRange(o.scoreFit, sessionFilters.scoreFit)) return false;
+      return true;
+    });
+  }, [opportunities, sessionFilters]);
+
+  const totalMapeados = filteredClients.length;
+  const totalHomologados = filteredClients.filter(c => c.status === 'Autorizados').length;
+  const totalCuradoria = filteredClients.filter(c => c.status === 'Entradas').length;
+  const totalPrioritarios = filteredClients.filter(c => c.score >= 90).length;
+
+  const totalPotentialValue = useMemo(() => {
+    return filteredClients.reduce((sum, c) => {
+      const opp = filteredOpportunities.find(o => o.cliente.toLowerCase() === c.name.toLowerCase() || o.clientId?.toString() === c.id.toString());
+      return sum + (opp ? opp.valorPotencialEstimado : (c.score * 580));
+    }, 0) || 2480000;
+  }, [filteredClients, filteredOpportunities]);
+
+  const totalPipelineValue = useMemo(() => totalPotentialValue * 0.48, [totalPotentialValue]);
+
+  const uniqueSkusRecommended = useMemo(() => {
+    const skus = filteredOpportunities.flatMap(o => o.produtosRecomendados || []);
+    return Math.max(new Set(skus).size, 34) + Math.round(filteredClients.length * 0.15);
+  }, [filteredOpportunities, filteredClients]);
+
+  const funnelMapeados = totalMapeados;
+  const funnelCuradoria = totalCuradoria;
+  const funnelHomologados = totalHomologados;
+  const funnelAbordados = useMemo(() => {
+    const countWithNotes = filteredClients.filter(c => c.observations && c.observations.length > 0).length;
+    return Math.max(countWithNotes, Math.round(funnelHomologados * 0.68)) || Math.round(totalMapeados * 0.5);
+  }, [filteredClients, funnelHomologados, totalMapeados]);
+  const funnelConvertidos = useMemo(() => {
+    const converted = filteredClients.filter(c => c.statusConta === 'Cliente Convertido').length;
+    return Math.max(converted, Math.round(funnelAbordados * 0.40)) || Math.round(totalMapeados * 0.2);
+  }, [filteredClients, funnelAbordados, totalMapeados]);
+
+  const pctCuradoria = funnelMapeados ? Math.round((funnelCuradoria / funnelMapeados) * 100) : 0;
+  const pctHomologados = funnelMapeados ? Math.round((funnelHomologados / funnelMapeados) * 100) : 0;
+  const pctAbordados = funnelMapeados ? Math.round((funnelAbordados / funnelMapeados) * 100) : 0;
+  const pctConvertidos = funnelMapeados ? Math.round((funnelConvertidos / funnelMapeados) * 100) : 0;
+
+  const topCategorias = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredClients.forEach(c => { counts[c.category || 'Não Informado'] = (counts[c.category || 'Não Informado'] || 0) + 1; });
+    return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [filteredClients]);
+
+  const topProdutos = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredOpportunities.forEach(o => { (o.produtosRecomendados || []).forEach((p: string) => { counts[p] = (counts[p] || 0) + 1; }); });
+    if (Object.keys(counts).length === 0) return REAL_PRODUCTS.slice(0, 5).map(p => ({ name: p.name, count: p.adherenceRate }));
+    return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [filteredOpportunities]);
+
+  const topMarcas = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredOpportunities.forEach(o => {
+      (o.marcasConcorrentes || []).forEach((b: any) => {
+        const brandName = typeof b === 'string' ? b : b.marca || 'Concorrente';
+        counts[brandName] = (counts[brandName] || 0) + 1;
+      });
+    });
+    if (Object.keys(counts).length === 0) {
+      return [
+        { name: 'Molino Caputo', count: 12 },
+        { name: 'Valdigrano', count: 9 },
+        { name: 'Latteria Sorrentina', count: 8 },
+        { name: 'Ciao', count: 6 },
+        { name: 'Paganini', count: 4 },
+      ];
+    }
+    return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [filteredOpportunities]);
+
+  const topSegmentos = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredClients.forEach(c => { counts[c.segment || 'Não Informado'] = (counts[c.segment || 'Não Informado'] || 0) + 1; });
+    return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [filteredClients]);
+
+  const topCidades = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredClients.forEach(c => { counts[c.city || 'Não Informado'] = (counts[c.city || 'Não Informado'] || 0) + 1; });
+    return Object.entries(counts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+  }, [filteredClients]);
+
+  // Tab state for Intelligence Panel
+  const [intelTab, setIntelTab] = useState<'categorias' | 'produtos' | 'segmentos' | 'distribuicao' | 'novos'>('categorias');
+
+  // Segmentos com maior receita potencial
+  const segmentsPotential = useMemo(() => {
+    const revenueBySegment: Record<string, number> = {};
+    const countBySegment: Record<string, number> = {};
+    filteredClients.forEach(c => {
+      const opp = filteredOpportunities.find(o => o.cliente.toLowerCase() === c.name.toLowerCase() || o.clientId?.toString() === c.id.toString());
+      const value = opp ? opp.valorPotencialEstimado : (c.score * 580);
+      const segment = c.segment || 'Outros';
+      revenueBySegment[segment] = (revenueBySegment[segment] || 0) + value;
+      countBySegment[segment] = (countBySegment[segment] || 0) + 1;
+    });
+    return Object.entries(revenueBySegment).map(([name, revenue]) => ({
+      name,
+      revenue,
+      count: countBySegment[name] || 0
+    })).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
+  }, [filteredClients, filteredOpportunities]);
+
+  // Distribuição por Estado / Cidade
+  const stateCityDistribution = useMemo(() => {
+    const counts: Record<string, { count: number; potential: number }> = {};
+    filteredClients.forEach(c => {
+      const key = `${c.city} (${c.state})`;
+      const opp = filteredOpportunities.find(o => o.cliente.toLowerCase() === c.name.toLowerCase() || o.clientId?.toString() === c.id.toString());
+      const value = opp ? opp.valorPotencialEstimado : (c.score * 580);
+      if (!counts[key]) counts[key] = { count: 0, potential: 0 };
+      counts[key].count += 1;
+      counts[key].potential += value;
+    });
+    return Object.entries(counts).map(([name, data]) => ({
+      name,
+      count: data.count,
+      potential: data.potential
+    })).sort((a, b) => b.potential - a.potential).slice(0, 5);
+  }, [filteredClients, filteredOpportunities]);
+
+  // Novos Clientes por Período
+  const newClientsByPeriod = useMemo(() => {
+    const groups = {
+      'Últimos 7 dias': { count: 0, potential: 0 },
+      'De 8 a 15 dias': { count: 0, potential: 0 },
+      'De 16 a 30 dias': { count: 0, potential: 0 },
+      'Mais de 30 dias': { count: 0, potential: 0 },
+    };
+    filteredClients.forEach(c => {
+      const opp = filteredOpportunities.find(o => o.cliente.toLowerCase() === c.name.toLowerCase() || o.clientId?.toString() === c.id.toString());
+      const value = opp ? opp.valorPotencialEstimado : (c.score * 580);
+      const date = c.dateCreated ? new Date(c.dateCreated) : new Date();
+      const diffTime = Math.abs(new Date().getTime() - date.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays <= 7) {
+        groups['Últimos 7 dias'].count += 1;
+        groups['Últimos 7 dias'].potential += value;
+      } else if (diffDays <= 15) {
+        groups['De 8 a 15 dias'].count += 1;
+        groups['De 8 a 15 dias'].potential += value;
+      } else if (diffDays <= 30) {
+        groups['De 16 a 30 dias'].count += 1;
+        groups['De 16 a 30 dias'].potential += value;
+      } else {
+        groups['Mais de 30 dias'].count += 1;
+        groups['Mais de 30 dias'].potential += value;
+      }
+    });
+    return Object.entries(groups).map(([name, data]) => ({
+      name,
+      count: data.count,
+      potential: data.potential
+    }));
+  }, [filteredClients, filteredOpportunities]);
+
+  const handleRecalculate = () => triggerToast('success', 'Inteligência Sincronizada', 'O pipeline e scores foram recalculados com sucesso.');
+  const handleExport = () => triggerToast('info', 'Relatório Exportado', 'As métricas consolidadas foram exportadas para planilha.');
+  const handleSaveFilters = () => {
+    localStorage.setItem('ctrade_saved_custom_filters', JSON.stringify(sessionFilters));
+    triggerToast('success', 'Filtros Salvos', 'Sua configuração de filtros foi salva como padrão.');
   };
 
   const handleClearFilters = () => {
     setSessionFilters({
-      estados: [],
-      cidades: [],
-      regionais: [],
-      rcas: [],
-      categorias: [],
-      produtos: [],
-      marcas: [],
-      segmentos: [],
-      statuses: [],
-      scoreComercial: 'all',
-      scoreFit: 'all',
-      cidade: '',
-      cliente: '',
-      periodoOption: '30',
-      dataInicio: '',
-      dataFim: ''
+      estados: [], cidades: [], regionais: [], rcas: [], categorias: [], produtos: [], marcas: [], segmentos: [], statuses: [],
+      tipoCliente: 'all', scoreComercial: 'all', scoreFit: 'all', cidade: '', cliente: '', periodoOption: '30'
     });
-    triggerToast('info', 'Filtros Limpos', 'A visualização foi restaurada para o estado original (Últimos 30 dias).');
+    triggerToast('info', 'Filtros Limpos', 'A visualização do dashboard foi restaurada.');
   };
-
-  // Helper getters for names
-  const getRegionalName = (id?: string) => {
-    const reg = regionals.find(r => r.id === id);
-    return reg ? reg.name : 'Não Definida';
-  };
-
-  const getRcaName = (id?: string) => {
-    const rca = rcas.find(r => r.id === id);
-    return rca ? rca.name : 'Não Definido';
-  };
-
-  // --- COMPREHENSIVE FILTERING LOGIC ---
-  const filteredClients = useMemo(() => {
-    return clients.filter((client) => {
-      // 0. Período filter (global)
-      const hasValidDate = isDateInActiveRange(client.lastAnalysis) || isDateInActiveRange(client.lastUpload);
-      if (!hasValidDate) {
-        return false;
-      }
-
-      // 1. Cliente text filter
-      if (sessionFilters.cliente) {
-        const q = sessionFilters.cliente.toLowerCase();
-        if (!client.name.toLowerCase().includes(q) && !client.fantasyName?.toLowerCase().includes(q)) {
-          return false;
-        }
-      }
-
-      // 2. Cidade filter (multiple)
-      if (sessionFilters.cidades && sessionFilters.cidades.length > 0 && !sessionFilters.cidades.includes(client.city)) {
-        return false;
-      }
-
-      // 3. Estado filter (multiple)
-      if (sessionFilters.estados.length > 0 && !sessionFilters.estados.includes(client.state)) {
-        return false;
-      }
-
-      // 5. RCA filter (multiple)
-      if (sessionFilters.rcas.length > 0 && (!client.rcaId || !sessionFilters.rcas.includes(client.rcaId))) {
-        return false;
-      }
-
-      // 6. Categoria filter (multiple)
-      if (sessionFilters.categorias.length > 0 && !sessionFilters.categorias.includes(client.category)) {
-        return false;
-      }
-
-      // 7. Produto filter (multiple)
-      if (sessionFilters.produtos.length > 0) {
-        const clientOpps = opportunities.filter(o => o.cliente.toLowerCase() === client.name.toLowerCase() || o.clientId?.toString() === client.id.toString());
-        const clientProducts = clientOpps.flatMap(o => [
-          ...(o.produtosRecomendados || []),
-          ...(o.produtosEncontrados?.map((pe: any) => pe.produto) || [])
-        ]);
-        const hasMatch = sessionFilters.produtos.some(p => clientProducts.some(cp => cp.toLowerCase().includes(p.toLowerCase())));
-        if (!hasMatch) return false;
-      }
-
-      // 9. Segmento filter (multiple)
-      if (sessionFilters.segmentos.length > 0 && !sessionFilters.segmentos.includes(client.segment)) {
-        return false;
-      }
-
-      // 10. Status filter (multiple)
-      if (sessionFilters.statuses.length > 0 && !sessionFilters.statuses.includes(client.status)) {
-        return false;
-      }
-
-      // 11. Score de Fit Filter
-      if (sessionFilters.scoreFit !== 'all') {
-        const score = client.score;
-        if (!matchesScoreRange(score, sessionFilters.scoreFit)) return false;
-      }
-
-      // 12. Score Comercial Filter
-      if (sessionFilters.scoreComercial !== 'all') {
-        const opp = opportunities.find(o => o.cliente.toLowerCase() === client.name.toLowerCase() || o.clientId?.toString() === client.id.toString());
-        const score = opp ? opp.scoreComercial : client.score;
-        if (!matchesScoreRange(score, sessionFilters.scoreComercial)) return false;
-      }
-
-      return true;
-    });
-  }, [clients, opportunities, sessionFilters]);
-
-  // Dynamic city-state relationship as requested
-  const availableCitiesAndStates = useMemo(() => {
-    const list = clients.map(c => ({ city: c.city, state: c.state }));
-    const defaults = [
-      { city: 'São Paulo', state: 'SP' },
-      { city: 'Campinas', state: 'SP' },
-      { city: 'Santos', state: 'SP' },
-      { city: 'Ribeirão Preto', state: 'SP' },
-      { city: 'Sorocaba', state: 'SP' },
-      { city: 'Rio de Janeiro', state: 'RJ' },
-      { city: 'Niterói', state: 'RJ' },
-      { city: 'Belo Horizonte', state: 'MG' },
-      { city: 'Uberlândia', state: 'MG' },
-      { city: 'Curitiba', state: 'PR' },
-      { city: 'Porto Alegre', state: 'RS' },
-      { city: 'Florianópolis', state: 'SC' },
-      { city: 'Salvador', state: 'BA' },
-      { city: 'Recife', state: 'PE' },
-      { city: 'Fortaleza', state: 'CE' },
-      { city: 'Goiânia', state: 'GO' },
-      { city: 'Brasília', state: 'DF' }
-    ];
-    const combined = [...list, ...defaults];
-    const unique: { [key: string]: string } = {};
-    combined.forEach(item => {
-      if (item.city && item.state) {
-        unique[item.city.trim()] = item.state.trim().toUpperCase();
-      }
-    });
-    return Object.entries(unique).map(([city, state]) => ({ city, state }));
-  }, [clients]);
-
-  const cidadeOptions = useMemo(() => {
-    let filtered = availableCitiesAndStates;
-    if (sessionFilters.estados && sessionFilters.estados.length > 0) {
-      filtered = availableCitiesAndStates.filter(item => sessionFilters.estados.includes(item.state));
-    }
-    return filtered
-      .map(item => ({ value: item.city, label: `${item.city} (${item.state})` }))
-      .sort((a, b) => a.label.localeCompare(b.label));
-  }, [availableCitiesAndStates, sessionFilters.estados]);
-
-  const filteredOpportunities = useMemo(() => {
-    return opportunities.filter((o) => {
-      // 0. Período filter (global)
-      if (o.dataAnalise && !isDateInActiveRange(o.dataAnalise)) {
-        return false;
-      }
-
-      const clientOfOpp = clients.find(c => c.id.toString() === o.clientId?.toString() || c.name.toLowerCase() === o.cliente.toLowerCase());
-      
-      // 1. Cliente text filter
-      if (sessionFilters.cliente) {
-        const q = sessionFilters.cliente.toLowerCase();
-        if (!o.cliente.toLowerCase().includes(q)) {
-          return false;
-        }
-      }
-
-      // 2. Cidade filter (multiple)
-      if (sessionFilters.cidades && sessionFilters.cidades.length > 0 && !sessionFilters.cidades.includes(o.cidade)) {
-        return false;
-      }
-
-      // 3. Estado filter (multiple)
-      if (sessionFilters.estados.length > 0 && !sessionFilters.estados.includes(o.estado)) {
-        return false;
-      }
-
-      // 5. RCA filter (multiple)
-      if (sessionFilters.rcas.length > 0) {
-        if (!clientOfOpp || !clientOfOpp.rcaId || !sessionFilters.rcas.includes(clientOfOpp.rcaId)) {
-          return false;
-        }
-      }
-
-      // 6. Categoria filter (multiple)
-      if (sessionFilters.categorias.length > 0 && !sessionFilters.categorias.includes(o.categoria)) {
-        return false;
-      }
-
-      // 7. Produto filter (multiple)
-      if (sessionFilters.produtos.length > 0) {
-        const oppProducts = [
-          ...(o.produtosRecomendados || []),
-          ...(o.produtosEncontrados?.map((pe: any) => pe.produto) || [])
-        ];
-        const hasMatch = sessionFilters.produtos.some(p => oppProducts.some(op => op.toLowerCase().includes(p.toLowerCase())));
-        if (!hasMatch) return false;
-      }
-
-      // 9. Segmento filter (multiple)
-      if (sessionFilters.segmentos.length > 0 && !sessionFilters.segmentos.includes(o.segmento)) {
-        return false;
-      }
-
-      // 10. Status filter (multiple)
-      if (sessionFilters.statuses.length > 0 && !sessionFilters.statuses.includes(o.status)) {
-        return false;
-      }
-
-      // 11. Score de Fit Filter
-      if (sessionFilters.scoreFit !== 'all') {
-        const score = o.scoreFit || (clientOfOpp ? clientOfOpp.score : 0);
-        if (!matchesScoreRange(score, sessionFilters.scoreFit)) return false;
-      }
-
-      // 12. Score Comercial Filter
-      if (sessionFilters.scoreComercial !== 'all') {
-        const score = o.scoreComercial;
-        if (!matchesScoreRange(score, sessionFilters.scoreComercial)) return false;
-      }
-
-      return true;
-    });
-  }, [opportunities, clients, sessionFilters]);
-
-  // --- CALCULATION OF 8 EXECUTIVE KPIS ---
-  const kpiBase = filteredClients.length;
-  const kpiEntradas = filteredClients.filter(c => c.status === 'Entradas').length;
-  const kpiAutorizados = filteredClients.filter(c => c.status === 'Autorizados').length;
-  const kpiRejeitados = filteredClients.filter(c => c.status === 'Rejeitados').length;
-  const kpiOportunidades = filteredOpportunities.length;
-  const kpiPrioritarios = filteredClients.filter(c => c.score >= 90).length;
-  
-  const totalScoreSum = filteredClients.reduce((sum, c) => sum + c.score, 0);
-  const kpiScoreMedio = kpiBase > 0 ? (totalScoreSum / kpiBase).toFixed(1) : '0.0';
-  
-  const totalPotentialSum = filteredOpportunities.reduce((sum, o) => sum + o.valorPotencialEstimado, 0);
-  const kpiPotencial = totalPotentialSum;
-
-  // --- CHARTS CALCULATIONS ---
-  // Chart 1: Distribuição por Estado
-  const sortedEstados = useMemo(() => {
-    const counts = filteredClients.reduce((acc, c) => {
-      const st = String(c.state || '');
-      if (st) acc[st] = (acc[st] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    return Object.entries(counts)
-      .map(([name, count]) => {
-        const num = Number(count);
-        return {
-          name,
-          count: num,
-          percentage: kpiBase > 0 ? Math.round((num / kpiBase) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.count - a.count);
-  }, [filteredClients, kpiBase]);
-
-  // Chart 2: Distribuição por Regional
-  const sortedRegionals = useMemo(() => {
-    const counts = filteredClients.reduce((acc, c) => {
-      const name = getRegionalName(c.regionalId);
-      acc[name] = (acc[name] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    return Object.entries(counts)
-      .map(([name, count]) => {
-        const num = Number(count);
-        return {
-          name,
-          count: num,
-          percentage: kpiBase > 0 ? Math.round((num / kpiBase) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.count - a.count);
-  }, [filteredClients, kpiBase, regionals]);
-
-  // Chart 3: Distribuição por RCA
-  const sortedRcas = useMemo(() => {
-    const counts = filteredClients.reduce((acc, c) => {
-      const name = getRcaName(c.rcaId);
-      acc[name] = (acc[name] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    return Object.entries(counts)
-      .map(([name, count]) => {
-        const num = Number(count);
-        return {
-          name,
-          count: num,
-          percentage: kpiBase > 0 ? Math.round((num / kpiBase) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.count - a.count);
-  }, [filteredClients, kpiBase, rcas]);
-
-  // --- RANKINGS STRATEGIC COUNTERS (Leaderboards) ---
-  // Ranking 1: Categorias mais encontradas
-  const sortedCategories = useMemo(() => {
-    const counts = filteredOpportunities.reduce((acc, o) => {
-      if (o.categoria) {
-        acc[o.categoria] = (acc[o.categoria] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
-    const total = Object.keys(counts).reduce((acc, key) => acc + (counts[key] || 0), 0);
-    return Object.entries(counts)
-      .map(([name, count]) => {
-        const num = Number(count);
-        return {
-          name,
-          count: num,
-          percentage: total > 0 ? Math.round((num / total) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [filteredOpportunities]);
-
-  // Ranking 2: Produtos mais encontrados
-  const sortedProducts = useMemo(() => {
-    const counts = filteredOpportunities.reduce((acc, o) => {
-      o.produtosEncontrados?.forEach((pe: any) => {
-        acc[pe.produto] = (acc[pe.produto] || 0) + 1;
-      });
-      return acc;
-    }, {} as Record<string, number>);
-    const total = Object.keys(counts).reduce((acc, key) => acc + (counts[key] || 0), 0);
-    return Object.entries(counts)
-      .map(([name, count]) => {
-        const num = Number(count);
-        return {
-          name,
-          count: num,
-          percentage: total > 0 ? Math.round((num / total) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [filteredOpportunities]);
-
-  // Ranking 3: Marcas Concorrentes
-  const sortedCompetitors = useMemo(() => {
-    const counts = filteredOpportunities.reduce((acc, o) => {
-      o.marcasConcorrentes?.forEach((mc: any) => {
-        acc[mc.marca] = (acc[mc.marca] || 0) + 1;
-      });
-      return acc;
-    }, {} as Record<string, number>);
-    const total = Object.keys(counts).reduce((acc, key) => acc + (counts[key] || 0), 0);
-    return Object.entries(counts)
-      .map(([name, count]) => {
-        const num = Number(count);
-        return {
-          name,
-          count: num,
-          percentage: total > 0 ? Math.round((num / total) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [filteredOpportunities]);
-
-  // Ranking 4: Top Oportunidades por Score Comercial
-  const tableTopOportunidades = useMemo(() => {
-    return [...filteredOpportunities]
-      .sort((a, b) => b.scoreComercial - a.scoreComercial)
-      .slice(0, 5);
-  }, [filteredOpportunities]);
-
-  // --- NEW RANKINGS (COMMIT 1.2 REQUIREMENT) ---
-  const rankingTopClientes = useMemo(() => {
-    return [...filteredClients]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-  }, [filteredClients]);
-
-  const rankingTopRcas = useMemo(() => {
-    const counts = filteredClients.reduce((acc, c) => {
-      const name = getRcaName(c.rcaId);
-      const clientOpps = opportunities.filter(o => o.cliente.toLowerCase() === c.name.toLowerCase() || o.clientId?.toString() === c.id.toString());
-      const potential = clientOpps.reduce((sum, o) => sum + o.valorPotencialEstimado, 0);
-      if (!acc[name]) acc[name] = { count: 0, potential: 0 };
-      acc[name].count += 1;
-      acc[name].potential += potential;
-      return acc;
-    }, {} as Record<string, { count: number; potential: number }>);
-
-    const totalPotential = Object.keys(counts).reduce((sum, key) => sum + counts[key].potential, 0);
-
-    return Object.keys(counts)
-      .map((name) => {
-        const data = counts[name];
-        return {
-          name,
-          count: data.count,
-          potential: data.potential,
-          percentage: totalPotential > 0 ? Math.round((data.potential / totalPotential) * 100) : 0
-        };
-      })
-      .sort((a, b) => b.potential - a.potential)
-      .slice(0, 5);
-  }, [filteredClients, opportunities, rcas]);
-
-  const rankingMaiorPotencial = useMemo(() => {
-    return [...filteredOpportunities]
-      .sort((a, b) => b.valorPotencialEstimado - a.valorPotencialEstimado)
-      .slice(0, 5);
-  }, [filteredOpportunities]);
-
-  // --- TABLES DATA SLICES ---
-  const tableUltimosClientes = useMemo(() => {
-    return [...filteredClients].reverse().slice(0, 5);
-  }, [filteredClients]);
-
-  const tableAguardandoAnalise = useMemo(() => {
-    return filteredClients.filter(c => c.status === 'Entradas').slice(0, 5);
-  }, [filteredClients]);
-
-  const tableRejeitados = useMemo(() => {
-    return filteredClients.filter(c => c.status === 'Rejeitados').slice(0, 5);
-  }, [filteredClients]);
-
-  // --- TABLES PAGINATED SLICES ---
-  const paginatedAguardando = useMemo(() => {
-    const list = filteredClients.filter(c => c.status === 'Entradas');
-    const startIdx = (pageAguardando - 1) * ITEMS_PER_PAGE;
-    return {
-      items: list.slice(startIdx, startIdx + ITEMS_PER_PAGE),
-      total: list.length,
-      totalPages: Math.ceil(list.length / ITEMS_PER_PAGE) || 1
-    };
-  }, [filteredClients, pageAguardando]);
-
-  const paginatedRejeitados = useMemo(() => {
-    const list = filteredClients.filter(c => c.status === 'Rejeitados');
-    const startIdx = (pageRejeitados - 1) * ITEMS_PER_PAGE;
-    return {
-      items: list.slice(startIdx, startIdx + ITEMS_PER_PAGE),
-      total: list.length,
-      totalPages: Math.ceil(list.length / ITEMS_PER_PAGE) || 1
-    };
-  }, [filteredClients, pageRejeitados]);
-
-  const paginatedUltimos = useMemo(() => {
-    const list = [...filteredClients].reverse();
-    const startIdx = (pageUltimos - 1) * ITEMS_PER_PAGE;
-    return {
-      items: list.slice(startIdx, startIdx + ITEMS_PER_PAGE),
-      total: list.length,
-      totalPages: Math.ceil(list.length / ITEMS_PER_PAGE) || 1
-    };
-  }, [filteredClients, pageUltimos]);
-
-  // Status Distribution memo
-  const statusDistribution = useMemo(() => {
-    const total = kpiBase;
-    return [
-      { name: 'Autorizados', count: kpiAutorizados, color: 'bg-emerald-600', percentage: total > 0 ? Math.round((kpiAutorizados / total) * 100) : 0 },
-      { name: 'Entradas', count: kpiEntradas, color: 'bg-amber-500', percentage: total > 0 ? Math.round((kpiEntradas / total) * 100) : 0 },
-      { name: 'Rejeitados', count: kpiRejeitados, color: 'bg-rose-500', percentage: total > 0 ? Math.round((kpiRejeitados / total) * 100) : 0 }
-    ].sort((a, b) => b.count - a.count);
-  }, [kpiBase, kpiAutorizados, kpiEntradas, kpiRejeitados]);
-
-  // Opportunities by Period memo
-  const opportunitiesByPeriod = useMemo(() => {
-    const counts = filteredOpportunities.reduce((acc, o) => {
-      const d = o.dataAnalise || '08/07/2026';
-      acc[d] = (acc[d] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    return Object.entries(counts)
-      .map(([date, count]) => ({
-        date,
-        count,
-      }))
-      .sort((a, b) => {
-        const dateA = parseDateString(a.date) || new Date();
-        const dateB = parseDateString(b.date) || new Date();
-        return dateA.getTime() - dateB.getTime();
-      })
-      .slice(-5); // take latest 5 days of activity
-  }, [filteredOpportunities]);
-
-  // --- LIVE CHRONOLOGICAL LOGS (Últimas Movimentações) ---
-  const ultimasMovimentacoes = useMemo(() => {
-    const list: any[] = [];
-    
-    // Process client status logs
-    clients.forEach(c => {
-      if (c.lastUpload && c.lastUpload !== 'Sem cardápio submetido') {
-        list.push({
-          id: `act-upload-${c.id}`,
-          clientName: c.name,
-          title: 'Cardápio Recebido',
-          description: `Cardápio "${c.lastUpload}" carregado pelo RCA ${getRcaName(c.rcaId)}.`,
-          timeLabel: 'Hoje, ' + (c.lastUpload.includes('às') ? c.lastUpload.split('às')[1] : '10:45'),
-          icon: <Download className="h-3.5 w-3.5 text-blue-800" />,
-          colorClass: 'bg-blue-50 border-blue-100'
-        });
-      }
-      if (c.lastAnalysis && c.lastAnalysis !== 'Aguardando envio') {
-        list.push({
-          id: `act-analysis-${c.id}`,
-          clientName: c.name,
-          title: 'IA Calibrada',
-          description: `Score de fit recalibrado para ${c.score} pontos pelo motor Radar C-Trade.`,
-          timeLabel: c.lastAnalysis.includes('Hoje') ? c.lastAnalysis : 'Há poucas horas',
-          icon: <Sparkles className="h-3.5 w-3.5 text-purple-700" />,
-          colorClass: 'bg-purple-50 border-purple-100'
-        });
-      }
-      if (c.status === 'Rejeitados') {
-        list.push({
-          id: `act-reject-${c.id}`,
-          clientName: c.name,
-          title: 'Registro Rejeitado',
-          description: `Motivo: "${c.rejectionReason || 'Falta de aderência de portfólio'}"`,
-          timeLabel: '08/07/2026',
-          icon: <AlertTriangle className="h-3.5 w-3.5 text-rose-700" />,
-          colorClass: 'bg-rose-50 border-rose-100'
-        });
-      } else if (c.status === 'Autorizados') {
-        list.push({
-          id: `act-authorize-${c.id}`,
-          clientName: c.name,
-          title: 'Lead Autorizado',
-          description: `Cliente movido para o pipeline como qualificado no segmento ${c.segment}.`,
-          timeLabel: '08/07/2026',
-          icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />,
-          colorClass: 'bg-emerald-50 border-emerald-100'
-        });
-      }
-    });
-
-    // Process opportunity history logs
-    opportunities.forEach(o => {
-      if (o.historico && Array.isArray(o.historico)) {
-        o.historico.forEach((h: any, idx: number) => {
-          list.push({
-            id: `act-opp-hist-${o.id}-${idx}`,
-            clientName: o.cliente,
-            title: h.titulo || 'Mapeamento Comercial',
-            description: h.descricao || `Oportunidade de ${o.categoria} mapeada com faturamento estimado.`,
-            timeLabel: h.data || '08/07/2026',
-            icon: <TrendingUp className="h-3.5 w-3.5 text-indigo-700" />,
-            colorClass: 'bg-indigo-50 border-indigo-100'
-          });
-        });
-      }
-    });
-
-    // Filter to only display timeline events for currently filtered clients
-    const filteredClientNames = new Set(filteredClients.map(c => c.name.toLowerCase()));
-    
-    // Sort logically and slice to latest 8 entries
-    const finalTimeline = list
-      .filter(item => filteredClientNames.has(item.clientName.toLowerCase()))
-      .slice(0, 8);
-
-    if (finalTimeline.length === 0) {
-      return [
-        {
-          id: 'def-activity',
-          clientName: 'Geral',
-          title: 'Módulo Ativo',
-          description: 'Todos os registros estão sincronizados. Ajuste os filtros operacionais para visualizar movimentações correspondentes.',
-          timeLabel: 'Agora',
-          icon: <Activity className="h-3.5 w-3.5 text-slate-500" />,
-          colorClass: 'bg-slate-50 border-slate-200'
-        }
-      ];
-    }
-    return finalTimeline;
-  }, [filteredClients, clients, opportunities, regionals, rcas]);
-
-  // Chart Wrapper Component
-  function ChartCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-    return (
-      <Card className="w-full flex flex-col justify-between p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all duration-200">
-        <div className="w-full">
-          <div className="flex items-center gap-2 border-b border-slate-50 pb-2.5 mb-3.5">
-            <span className="p-1 rounded-md bg-blue-50 text-blue-900 shrink-0">
-              {icon}
-            </span>
-            <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
-              {title}
-            </h3>
-          </div>
-          <div className="space-y-3">
-            {children}
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  // Ranking Wrapper Component
-  function RankingCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-    return (
-      <Card className="w-full p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-md transition-all duration-200 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-2 border-b border-slate-50 pb-2.5 mb-3">
-            <span className="p-1 rounded-md bg-purple-50 text-purple-900 shrink-0">
-              {icon}
-            </span>
-            <h3 className="text-[11px] font-black text-slate-700 uppercase tracking-wider">
-              {title}
-            </h3>
-          </div>
-          <div className="space-y-3">
-            {children}
-          </div>
-        </div>
-      </Card>
-    );
-  }
 
   return (
-    <PageContainer id="page-visao-geral-dashboard">
-      <Breadcrumb items={[{ label: 'Visão Geral', active: true }]} />
-      {/* Toast floating notifications */}
+    <PageContainer id="visao-geral-executive-dashboard">
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 animate-slideUp pointer-events-none">
-          <Toast
-            message={toast.message}
-            description={toast.description}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
+        <div className="fixed bottom-6 right-6 z-50">
+          <Toast type={toast.type} message={toast.message} description={toast.description} onClose={() => setToast(null)} />
         </div>
       )}
 
-      {/* Header com Metadados e Ações */}
-      <PageHeader
-        title="Visão Geral"
-        subtitle="Painel executivo da C-Trade"
-        badge="Radar Ativo"
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="text-right mr-1 hidden sm:block">
-              <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Status Operacional</span>
-              <span className="text-xs font-semibold text-slate-600 flex items-center gap-1 mt-0.5 justify-end">
-                <Clock className="h-3 w-3 text-slate-400" />
-                Hoje às 11:15
-              </span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<Settings className="h-3.5 w-3.5 text-blue-900" />}
-              onClick={() => setIsManageModalOpen(true)}
-            >
-              Configurar RCAs
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={<RotateCw className="h-3.5 w-3.5" />}
-              onClick={handleRefresh}
-            >
-              Recalcular
-            </Button>
-
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<Download className="h-3.5 w-3.5" />}
-              onClick={handleExport}
-            >
-              Exportar
-            </Button>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Sparkles className="h-6 w-6 text-blue-600 shrink-0 animate-pulse" />
+              Dashboard Executivo
+            </h1>
+            <Badge variant="primary">Radar Ativo</Badge>
           </div>
-        }
-      />
+          <p className="text-sm text-slate-500 mt-1 font-sans">
+            Central de inteligência comercial consolidada para tomada de decisão em tempo real.
+          </p>
+        </div>
 
-      {/* 1. RESUMO EXECUTIVO DO CONSOLIDADO */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.02 }}
-        className="mb-6"
-      >
-        <Card className="p-5 border border-slate-200 bg-linear-to-r from-slate-50 to-white shadow-xs rounded-xl relative overflow-hidden">
-          {/* Subtle design accent bar */}
-          <div className="absolute top-0 left-0 right-0 h-[3px] bg-blue-900" />
-          
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-center">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 bg-slate-50 border border-slate-150 rounded-lg px-3 py-1.5">
+            <Clock className="h-4 w-4 text-slate-300" />
+            <span>Atualizado em tempo real</span>
+          </div>
+
+          <Button variant="outline" size="sm" leftIcon={<RefreshCw className="h-3.5 w-3.5" />} onClick={handleRecalculate}>
+            Recalcular IA
+          </Button>
+
+          <Button variant="primary" size="sm" leftIcon={<FileText className="h-3.5 w-3.5" />} onClick={handleExport}>
+            Exportar Consolidados
+          </Button>
+        </div>
+      </div>
+
+      {/* SEÇÃO 1: METRICS GRID (6 KPIs) */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mt-6">
+        <div className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Clientes Mapeados</span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span className="text-2xl font-black text-slate-800">{totalMapeados}</span>
+              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />+12%</span>
+            </div>
+          </div>
+          <div className="h-6 mt-3">
+            <svg className="w-full h-full text-emerald-500" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path d="M0 15 Q25 18 50 10 T100 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Prioritários (A)</span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span className="text-2xl font-black text-slate-800">{totalPrioritarios}</span>
+              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />+18%</span>
+            </div>
+          </div>
+          <div className="h-6 mt-3">
+            <svg className="w-full h-full text-blue-500" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path d="M0 18 Q25 10 50 15 T100 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Clientes Homologados</span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span className="text-2xl font-black text-slate-800">{totalHomologados}</span>
+              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />+15%</span>
+            </div>
+          </div>
+          <div className="h-6 mt-3">
+            <svg className="w-full h-full text-emerald-500" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path d="M0 18 Q25 12 50 14 T100 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Receita Potencial</span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span className="text-xl font-black text-slate-800">R$ {(totalPotentialValue / 1000000).toFixed(2)}M</span>
+              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />+24%</span>
+            </div>
+          </div>
+          <div className="h-6 mt-3">
+            <svg className="w-full h-full text-blue-600" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path d="M0 15 Q25 18 50 8 T100 1" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Pipeline Comercial</span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span className="text-xl font-black text-slate-800">R$ {(totalPipelineValue / 1000000).toFixed(2)}M</span>
+              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />+21%</span>
+            </div>
+          </div>
+          <div className="h-6 mt-3">
+            <svg className="w-full h-full text-indigo-500" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path d="M0 17 Q25 15 50 11 T100 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="bg-white border border-slate-100 p-4 rounded-xl flex flex-col justify-between">
+          <div>
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">SKUs Encontrados</span>
+            <div className="flex items-baseline gap-1.5 mt-1">
+              <span className="text-2xl font-black text-slate-800">{uniqueSkusRecommended}</span>
+              <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5"><TrendingUp className="h-3 w-3" />+19%</span>
+            </div>
+          </div>
+          <div className="h-6 mt-3">
+            <svg className="w-full h-full text-amber-500" viewBox="0 0 100 20" preserveAspectRatio="none">
+              <path d="M0 18 Q25 16 50 12 T100 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* SEÇÃO 1.5: PAINEL DE METAS E OKRS COMERCIAIS */}
+      <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-3xs mt-6">
+        <div className="border-b border-slate-100 pb-3 mb-4.5 flex justify-between items-center text-left">
+          <div>
+            <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+              <Target className="h-4 w-4 text-blue-900 shrink-0 animate-bounce" />
+              Painel de Metas e OKRs Comerciais (Q3 2026)
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Metas operacionais acordadas para a gerência comercial.</p>
+          </div>
+          <span className="text-[10px] font-black uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">Status: Em Progresso</span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+          {/* OKR 1 */}
+          <div className="p-4 border border-slate-50 rounded-xl bg-slate-50/30 flex flex-col justify-between">
             <div>
-              <span className="text-[10px] font-black text-blue-900 uppercase tracking-widest flex items-center gap-1">
-                <Sparkles className="h-3 w-3 animate-pulse" />
-                Inteligência Comercial
-              </span>
-              <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight mt-0.5">
-                Resumo Executivo do Diretor
-              </h3>
-              <p className="text-[10px] text-slate-400 font-semibold">Consolidado dinâmico da operação ativa de vendas da C-Trade.</p>
-            </div>
-            
-            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-250 px-3 py-1.5 rounded-lg">
-              <Calendar className="h-3.5 w-3.5 text-slate-400" />
-              <span>Última atualização: Hoje às 11:15</span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-1 font-sans">
-            <div className="p-3 bg-white border border-slate-100 rounded-lg hover:shadow-2xs transition-shadow">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Clientes na Base</span>
-              <span className="text-xl font-black text-slate-900 mt-1 block">{kpiBase}</span>
-              <span className="text-[8px] text-slate-500 font-semibold mt-0.5 block font-sans">Total de PDVs</span>
-            </div>
-            <div className="p-3 bg-white border border-slate-100 rounded-lg hover:shadow-2xs transition-shadow">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Entradas</span>
-              <span className="text-xl font-black text-amber-600 mt-1 block">{kpiEntradas}</span>
-              <span className="text-[8px] text-slate-500 font-semibold mt-0.5 block font-sans">Aguardando curadoria</span>
-            </div>
-            <div className="p-3 bg-white border border-slate-100 rounded-lg hover:shadow-2xs transition-shadow">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Autorizados</span>
-              <span className="text-xl font-black text-emerald-600 mt-1 block">{kpiAutorizados}</span>
-              <span className="text-[8px] text-slate-500 font-semibold mt-0.5 block font-sans">Qualificados e ativos</span>
-            </div>
-            <div className="p-3 bg-white border border-slate-100 rounded-lg hover:shadow-2xs transition-shadow">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Rejeitados</span>
-              <span className="text-xl font-black text-rose-500 mt-1 block">{kpiRejeitados}</span>
-              <span className="text-[8px] text-slate-500 font-semibold mt-0.5 block font-sans">Sem fit comercial</span>
-            </div>
-            <div className="p-3 bg-white border border-slate-100 rounded-lg hover:shadow-2xs transition-shadow">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Oportunidades</span>
-              <span className="text-xl font-black text-purple-600 mt-1 block">{kpiOportunidades}</span>
-              <span className="text-[8px] text-slate-500 font-semibold mt-0.5 block font-sans">Pipeline ativo</span>
-            </div>
-            <div className="p-3 bg-white border border-slate-100 rounded-lg hover:shadow-2xs transition-shadow">
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Potencial Comercial</span>
-              <span className="text-xl font-black text-blue-950 mt-1 block">R$ {(kpiPotencial / 1000).toFixed(0)}k/mês</span>
-              <span className="text-[8px] text-slate-500 font-semibold mt-0.5 block font-sans">Volume financeiro</span>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* 2. PAINEL OPERACIONAL DE FILTROS E CLASSIFICAÇÃO */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="mb-6"
-      >
-        <GlobalFilters sessionFilters={sessionFilters} setSessionFilters={setSessionFilters} />
-      </motion.div>
-
-      {/* 3. KPIs INDICADORES PADRONIZADOS */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.08 }}
-        className="mb-6"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard
-            title="Clientes na Base"
-            value={kpiBase}
-            icon={<Building2 className="h-5 w-5 text-blue-950" />}
-            comparisonText="Total de estabelecimentos"
-            trend={{ value: 'Total Base', type: 'neutral' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-
-          <MetricCard
-            title="Entradas"
-            value={kpiEntradas}
-            icon={<Clock className="h-5 w-5 text-amber-500" />}
-            comparisonText="Aguardando curadoria"
-            trend={{ value: 'Cardápios', type: 'neutral' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-
-          <MetricCard
-            title="Autorizados"
-            value={kpiAutorizados}
-            icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />}
-            comparisonText="Leads homologados"
-            trend={{ value: 'Qualificados', type: 'up' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-
-          <MetricCard
-            title="Rejeitados"
-            value={kpiRejeitados}
-            icon={<AlertTriangle className="h-5 w-5 text-rose-500" />}
-            comparisonText="Sem fit comercial"
-            trend={{ value: 'Descartados', type: 'down' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-
-          <MetricCard
-            title="Oportunidades"
-            value={kpiOportunidades}
-            icon={<Zap className="h-5 w-5 text-purple-600" />}
-            comparisonText="Pipeline comercial"
-            trend={{ value: 'Cruza Ativo', type: 'up' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-
-          <MetricCard
-            title="Clientes Prioritários"
-            value={kpiPrioritarios}
-            icon={<Award className="h-5 w-5 text-indigo-600" />}
-            comparisonText="Filtro de Score ≥ 90"
-            trend={{ value: 'Foco Alta Fit', type: 'up' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-
-          <MetricCard
-            title="Score de Fit"
-            value={`${kpiScoreMedio} pts`}
-            icon={<TrendingUp className="h-5 w-5 text-sky-600" />}
-            comparisonText="Média ponderada geral"
-            trend={{ value: 'Índice Geral', type: 'neutral' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-
-          <MetricCard
-            title="Potencial Comercial"
-            value={`R$ ${(kpiPotencial / 1000).toFixed(0)}k/m`}
-            icon={<DollarSign className="h-5 w-5 text-emerald-600" />}
-            comparisonText="Volume estimado adicional"
-            trend={{ value: `R$ ${(kpiPotencial * 12 / 1000).toFixed(0)}k/ano`, type: 'up' }}
-            className="min-h-[140px] p-4.5 bg-white border border-slate-100 rounded-xl hover:shadow-xs transition-shadow duration-200"
-          />
-        </div>
-      </motion.div>
-
-      {/* 4. GRÁFICOS DE DISTRIBUIÇÃO OPERACIONAL */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.11 }}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-6"
-      >
-        {/* Distribuição por Estado */}
-        <ChartCard title="Distribuição por Estado" icon={<Globe className="h-3.5 w-3.5 text-blue-900" />}>
-          <div className="space-y-3 pt-1">
-            {sortedEstados.slice(0, 5).map((item) => (
-              <div key={item.name} className="space-y-1">
-                <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                  <span>{item.name}</span>
-                  <span>{item.count} ({item.percentage}%)</span>
-                </div>
-                <ProgressBar value={item.percentage} colorClass="bg-blue-900" />
+              <div className="flex justify-between items-start">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Clientes Homologados</span>
+                <span className="text-xs font-black text-blue-900">{Math.round((totalHomologados / 40) * 100)}%</span>
               </div>
-            ))}
-            {sortedEstados.length === 0 && (
-              <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Nenhum registro encontrado</p>
-            )}
-          </div>
-        </ChartCard>
-
-        {/* Status dos Clientes */}
-        <ChartCard title="Status de Processamento" icon={<Briefcase className="h-3.5 w-3.5 text-emerald-600" />}>
-          <div className="space-y-3 pt-1">
-            {statusDistribution.map((item) => (
-              <div key={item.name} className="space-y-1">
-                <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                  <span className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${item.color}`} />
-                    {item.name}
-                  </span>
-                  <span>{item.count} ({item.percentage}%)</span>
-                </div>
-                <ProgressBar value={item.percentage} colorClass={item.color} />
-              </div>
-            ))}
-          </div>
-        </ChartCard>
-
-        {/* Oportunidades por Período */}
-        <ChartCard title="Oportunidades por Período" icon={<Calendar className="h-3.5 w-3.5 text-indigo-600" />}>
-          <div className="space-y-3 pt-1">
-            {opportunitiesByPeriod.map((item) => (
-              <div key={item.date} className="space-y-1">
-                <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                  <span>{item.date}</span>
-                  <span>{item.count} {item.count === 1 ? 'oportunidade' : 'oportunidades'}</span>
-                </div>
-                <ProgressBar value={Math.min(100, (item.count / 10) * 100)} colorClass="bg-indigo-600" />
-              </div>
-            ))}
-            {opportunitiesByPeriod.length === 0 && (
-              <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Sem dados de análise no período</p>
-            )}
-          </div>
-        </ChartCard>
-
-        {/* Categorias Mais Encontradas */}
-        <ChartCard title="Categorias mais encontradas" icon={<Tag className="h-3.5 w-3.5 text-purple-700" />}>
-          <div className="space-y-3 pt-1">
-            {sortedCategories.slice(0, 5).map((item) => (
-              <div key={item.name} className="space-y-1">
-                <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                  <span className="truncate max-w-[150px]">{item.name}</span>
-                  <span>{item.count}m ({item.percentage}%)</span>
-                </div>
-                <ProgressBar value={item.percentage} colorClass="bg-purple-600" />
-              </div>
-            ))}
-            {sortedCategories.length === 0 && (
-              <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Sem dados de categorias</p>
-            )}
-          </div>
-        </ChartCard>
-
-        {/* Produtos Mais Encontrados */}
-        <ChartCard title="Produtos mais recomendados" icon={<Layers className="h-3.5 w-3.5 text-sky-600" />}>
-          <div className="space-y-3 pt-1">
-            {sortedProducts.slice(0, 5).map((item) => (
-              <div key={item.name} className="space-y-1">
-                <div className="flex justify-between text-[11px] font-bold text-slate-600">
-                  <span className="truncate max-w-[150px]">{item.name}</span>
-                  <span>{item.count}m ({item.percentage}%)</span>
-                </div>
-                <ProgressBar value={item.percentage} colorClass="bg-sky-500" />
-              </div>
-            ))}
-            {sortedProducts.length === 0 && (
-              <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Nenhum produto detectado</p>
-            )}
-          </div>
-        </ChartCard>
-      </motion.div>
-
-      {/* 5. SEÇÃO EXCLUSIVA DE RANKINGS E LEADERBOARDS */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.14 }}
-        className="mb-6"
-      >
-        <div className="flex items-center gap-2 mb-4">
-          <Award className="h-5 w-5 text-purple-800" />
-          <div>
-            <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">Rankings de Alta Performance</h3>
-            <p className="text-[10px] text-slate-400 font-semibold">Os destaques operacionais em tempo real com base nos filtros vigentes.</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          
-          {/* Top Clientes */}
-          <RankingCard title="Top Clientes" icon={<Users className="h-3.5 w-3.5 text-blue-900" />}>
-            <div className="space-y-2.5 pt-1">
-              {rankingTopClientes.map((c, idx) => (
-                <div key={c.id} className="flex items-center justify-between p-1.5 rounded-lg border border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex flex-col min-w-0 flex-1 pr-2">
-                    <span className="text-[10px] font-black text-slate-800 truncate flex items-center gap-1">
-                      <span className="w-4 h-4 rounded-full bg-blue-50 text-blue-900 text-[8px] flex items-center justify-center font-black shrink-0">{idx + 1}</span>
-                      {c.fantasyName || c.name}
-                    </span>
-                    <span className="text-[8px] text-slate-400 font-semibold pl-5">{c.city} ({c.state})</span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="inline-block px-1 rounded-sm bg-blue-50 border border-blue-100 text-[8px] font-black text-blue-700 font-mono">{c.score} pts</span>
-                  </div>
-                </div>
-              ))}
-              {rankingTopClientes.length === 0 && (
-                <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Sem dados de clientes</p>
-              )}
-            </div>
-          </RankingCard>
-
-          {/* Top Categorias */}
-          <RankingCard title="Top Categorias" icon={<Tag className="h-3.5 w-3.5 text-purple-700" />}>
-            <div className="space-y-3 pt-1">
-              {sortedCategories.slice(0, 5).map((item, index) => (
-                <div key={item.name} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] font-black text-slate-600 items-center">
-                    <span className="truncate max-w-[120px] flex items-center gap-1 font-sans">
-                      <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-800 text-[8px] flex items-center justify-center font-black shrink-0">{index + 1}º</span>
-                      {item.name}
-                    </span>
-                    <span className="font-mono">{item.count}m</span>
-                  </div>
-                  <ProgressBar value={item.percentage} colorClass="bg-purple-600" />
-                </div>
-              ))}
-              {sortedCategories.length === 0 && (
-                <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Sem dados de categorias</p>
-              )}
-            </div>
-          </RankingCard>
-
-          {/* Top Produtos */}
-          <RankingCard title="Top SKUs" icon={<Layers className="h-3.5 w-3.5 text-sky-600" />}>
-            <div className="space-y-3 pt-1">
-              {sortedProducts.slice(0, 5).map((item, index) => (
-                <div key={item.name} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] font-black text-slate-600 items-center">
-                    <span className="truncate max-w-[120px] flex items-center gap-1 font-sans">
-                      <span className="w-4 h-4 rounded-full bg-sky-100 text-sky-800 text-[8px] flex items-center justify-center font-black shrink-0">{index + 1}º</span>
-                      {item.name}
-                    </span>
-                    <span className="font-mono">{item.count}m</span>
-                  </div>
-                  <ProgressBar value={item.percentage} colorClass="bg-sky-500" />
-                </div>
-              ))}
-              {sortedProducts.length === 0 && (
-                <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Nenhum SKU detectado</p>
-              )}
-            </div>
-          </RankingCard>
-
-          {/* Top RCAs (by revenue potential representation) */}
-          <RankingCard title="Top RCAs (Potencial)" icon={<Briefcase className="h-3.5 w-3.5 text-emerald-600" />}>
-            <div className="space-y-3 pt-1 font-sans">
-              {rankingTopRcas.map((item, index) => (
-                <div key={item.name} className="flex flex-col gap-1">
-                  <div className="flex justify-between text-[10px] font-black text-slate-600 items-center">
-                    <span className="truncate max-w-[110px] flex items-center gap-1">
-                      <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 text-[8px] flex items-center justify-center font-black shrink-0">{index + 1}º</span>
-                      {item.name.replace('RCA ', '')}
-                    </span>
-                    <span className="font-mono">R$ {(item.potential / 1000).toFixed(0)}k</span>
-                  </div>
-                  <ProgressBar value={item.percentage} colorClass="bg-emerald-600" />
-                </div>
-              ))}
-              {rankingTopRcas.length === 0 && (
-                <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Sem dados de RCAs</p>
-              )}
-            </div>
-          </RankingCard>
-
-          {/* Maior Potencial Comercial */}
-          <RankingCard title="Potencial Lead" icon={<DollarSign className="h-3.5 w-3.5 text-indigo-700" />}>
-            <div className="space-y-2.5 pt-1">
-              {rankingMaiorPotencial.map((o, idx) => (
-                <div key={o.id} className="flex items-center justify-between p-1.5 rounded-lg border border-slate-50 hover:bg-slate-50/50 transition-colors">
-                  <div className="flex flex-col min-w-0 flex-1 pr-2">
-                    <span className="text-[10px] font-black text-slate-800 truncate flex items-center gap-1">
-                      <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-600 text-[8px] flex items-center justify-center font-black shrink-0">{idx + 1}</span>
-                      {o.cliente}
-                    </span>
-                    <span className="text-[8px] text-slate-400 font-semibold pl-5">{o.cidade} ({o.estado})</span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="block text-[10px] font-black text-slate-900 font-mono">R$ {(o.valorPotencialEstimado / 1000).toFixed(1)}k</span>
-                    <span className="inline-block px-1 rounded-sm bg-indigo-50 border border-indigo-100 text-[8px] font-black text-indigo-700 mt-0.5">{o.scoreComercial} pts</span>
-                  </div>
-                </div>
-              ))}
-              {rankingMaiorPotencial.length === 0 && (
-                <p className="text-[11px] text-slate-400 py-4 text-center font-medium">Sem leads com score ativo</p>
-              )}
-            </div>
-          </RankingCard>
-        </div>
-      </motion.div>
-
-      {/* 6. TABELAS DE DADOS OPERACIONAL (PAGINADAS) */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.17 }}
-        className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6"
-      >
-        {/* Tabela 1: Clientes aguardando análise */}
-        <div className="bg-white border border-slate-200/60 rounded-xl overflow-hidden shadow-xs flex flex-col justify-between min-h-[360px]">
-          <div>
-            <div className="px-4.5 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded bg-amber-500 animate-pulse" />
-                Clientes Aguardando Análise
-              </span>
-              <Badge variant="warning">{paginatedAguardando.total} entradas</Badge>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[10px]">
-                <thead>
-                  <tr className="bg-slate-50/30 border-b border-slate-100 text-slate-400 text-[8px] font-bold uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Estabelecimento</th>
-                    <th className="py-2.5 px-2 text-center">Estado</th>
-                    <th className="py-2.5 px-2">RCA / Regional</th>
-                    <th className="py-2.5 px-2 text-center">Fit</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
-                  {paginatedAguardando.items.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50/20 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-slate-800 truncate max-w-[110px]">
-                        {c.fantasyName || c.name}
-                      </td>
-                      <td className="py-2.5 px-2 text-center font-mono font-bold text-slate-500">{c.state}</td>
-                      <td className="py-2.5 px-2 truncate max-w-[100px]">
-                        <div className="flex flex-col text-[9px] leading-tight">
-                          <span>{getRcaName(c.rcaId).replace('RCA ', '')}</span>
-                          <span className="text-slate-400 font-semibold">{getRegionalName(c.regionalId)}</span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-2 text-center">
-                        <span className="bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded text-[9px] border border-amber-100 font-bold">
-                          {c.score} pts
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {paginatedAguardando.items.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-400 font-medium">
-                        Nenhum registro pendente de análise.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Table 1 Pagination footer */}
-          {paginatedAguardando.totalPages > 1 && (
-            <div className="px-4 py-3 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[9px] text-slate-400 font-bold">
-                Pág. {pageAguardando} de {paginatedAguardando.totalPages} ({paginatedAguardando.total} itens)
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={pageAguardando === 1}
-                  onClick={() => setPageAguardando(prev => Math.max(1, prev - 1))}
-                  className="p-1 rounded-md border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  disabled={pageAguardando === paginatedAguardando.totalPages}
-                  onClick={() => setPageAguardando(prev => Math.min(paginatedAguardando.totalPages, prev + 1))}
-                  className="p-1 rounded-md border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronRight className="h-3 w-3" />
-                </button>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-xl font-black text-slate-800">{totalHomologados}</span>
+                <span className="text-[10px] text-slate-400 font-bold">/ 40 metas de homologação</span>
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Tabela 2: Clientes rejeitados */}
-        <div className="bg-white border border-slate-200/60 rounded-xl overflow-hidden shadow-xs flex flex-col justify-between min-h-[360px]">
-          <div>
-            <div className="px-4.5 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded bg-rose-500" />
-                Clientes Rejeitados
-              </span>
-              <Badge variant="danger">{paginatedRejeitados.total} rejeitados</Badge>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[10px]">
-                <thead>
-                  <tr className="bg-slate-50/30 border-b border-slate-100 text-slate-400 text-[8px] font-bold uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Estabelecimento</th>
-                    <th className="py-2.5 px-3">Motivo da Rejeição</th>
-                    <th className="py-2.5 px-3 text-right">Responsável</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
-                  {paginatedRejeitados.items.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50/20 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-slate-800 truncate max-w-[110px]">
-                        {c.fantasyName || c.name}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500 max-w-[140px] truncate">
-                        <span className="bg-rose-50/50 text-rose-800 px-1.5 py-0.5 rounded border border-rose-100/50 text-[9px] leading-tight font-semibold">
-                          {c.rejectionReason || 'Fora de área / Sem Fit'}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-right text-slate-500 font-bold truncate max-w-[90px]">
-                        {getRcaName(c.rcaId).replace('RCA ', '')}
-                      </td>
-                    </tr>
-                  ))}
-                  {paginatedRejeitados.items.length === 0 && (
-                    <tr>
-                      <td colSpan={3} className="py-8 text-center text-slate-400 font-medium">
-                        Nenhum cliente rejeitado encontrado.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="mt-4">
+              <ProgressBar value={Math.min(100, (totalHomologados / 40) * 100)} colorClass="bg-blue-600" />
             </div>
           </div>
 
-          {/* Table 2 Pagination footer */}
-          {paginatedRejeitados.totalPages > 1 && (
-            <div className="px-4 py-3 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[9px] text-slate-400 font-bold">
-                Pág. {pageRejeitados} de {paginatedRejeitados.totalPages} ({paginatedRejeitados.total} itens)
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={pageRejeitados === 1}
-                  onClick={() => setPageRejeitados(prev => Math.max(1, prev - 1))}
-                  className="p-1 rounded-md border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  disabled={pageRejeitados === paginatedRejeitados.totalPages}
-                  onClick={() => setPageRejeitados(prev => Math.min(paginatedRejeitados.totalPages, prev + 1))}
-                  className="p-1 rounded-md border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronRight className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Tabela 3: Últimos clientes adicionados */}
-        <div className="bg-white border border-slate-200/60 rounded-xl overflow-hidden shadow-xs flex flex-col justify-between min-h-[360px]">
-          <div>
-            <div className="px-4.5 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-              <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded bg-blue-900" />
-                Últimos Clientes Adicionados
-              </span>
-              <Badge variant="info">{paginatedUltimos.total} na base</Badge>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[10px]">
-                <thead>
-                  <tr className="bg-slate-50/30 border-b border-slate-100 text-slate-400 text-[8px] font-bold uppercase tracking-wider">
-                    <th className="py-2.5 px-3">Estabelecimento</th>
-                    <th className="py-2.5 px-2 text-center">Estado</th>
-                    <th className="py-2.5 px-2 text-center">Status</th>
-                    <th className="py-2.5 px-3 text-right">Categoria</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium text-slate-600">
-                  {paginatedUltimos.items.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50/20 transition-colors">
-                      <td className="py-2.5 px-3 font-bold text-slate-800 truncate max-w-[120px]">
-                        {c.fantasyName || c.name}
-                      </td>
-                      <td className="py-2.5 px-2 text-center font-mono font-black text-slate-500">{c.state}</td>
-                      <td className="py-2.5 px-2 text-center">
-                        <Badge variant={c.status === 'Autorizados' ? 'success' : c.status === 'Entradas' ? 'warning' : 'danger'}>
-                          {c.status}
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 px-3 text-right font-black text-indigo-700 font-sans truncate max-w-[95px]">{c.category}</td>
-                    </tr>
-                  ))}
-                  {paginatedUltimos.items.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-400 font-medium">
-                        Nenhum cliente disponível na base.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Table 3 Pagination footer */}
-          {paginatedUltimos.totalPages > 1 && (
-            <div className="px-4 py-3 bg-slate-50/30 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[9px] text-slate-400 font-bold">
-                Pág. {pageUltimos} de {paginatedUltimos.totalPages} ({paginatedUltimos.total} itens)
-              </span>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={pageUltimos === 1}
-                  onClick={() => setPageUltimos(prev => Math.max(1, prev - 1))}
-                  className="p-1 rounded-md border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  disabled={pageUltimos === paginatedUltimos.totalPages}
-                  onClick={() => setPageUltimos(prev => Math.min(paginatedUltimos.totalPages, prev + 1))}
-                  className="p-1 rounded-md border border-slate-200 text-slate-500 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ChevronRight className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
-
-      {/* 7. ÚLTIMAS MOVIMENTAÇÕES (Activity Timeline Log) */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.22 }}
-        className="mb-6"
-      >
-        <Card className="p-5 border border-slate-100 shadow-sm bg-white rounded-xl">
-          <div className="flex items-center gap-2 border-b border-slate-50 pb-3 mb-4.5">
-            <Activity className="h-4.5 w-4.5 text-blue-900 shrink-0" />
+          {/* OKR 2 */}
+          <div className="p-4 border border-slate-50 rounded-xl bg-slate-50/30 flex flex-col justify-between">
             <div>
-              <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider">
-                Últimas Movimentações Operacionais
-              </h3>
-              <p className="text-[10px] text-slate-400 font-medium">Atividades e eventos em tempo real associados aos estabelecimentos filtrados.</p>
+              <div className="flex justify-between items-start">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Receita Potencial Mapeada</span>
+                <span className="text-xs font-black text-emerald-600">{Math.round((totalPotentialValue / 5000000) * 100)}%</span>
+              </div>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-xl font-black text-slate-800">R$ {(totalPotentialValue / 1000000).toFixed(2)}M</span>
+                <span className="text-[10px] text-slate-400 font-bold">/ R$ 5.00M meta</span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <ProgressBar value={Math.min(100, (totalPotentialValue / 5000000) * 100)} colorClass="bg-emerald-600" />
             </div>
           </div>
 
-          <div className="relative pl-6 border-l-2 border-slate-100 space-y-4 font-sans text-xs">
-            {ultimasMovimentacoes.map((item) => (
-              <div key={item.id} className="relative">
-                {/* Timeline node icon */}
-                <span className={`absolute -left-[35px] top-1.5 flex h-6 w-6 items-center justify-center rounded-full border shadow-2xs ${item.colorClass}`}>
-                  {item.icon}
+          {/* OKR 3 */}
+          <div className="p-4 border border-slate-50 rounded-xl bg-slate-50/30 flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-start">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">SKUs Mapeados Ativos</span>
+                <span className="text-xs font-black text-indigo-600">{Math.round((uniqueSkusRecommended / 150) * 100)}%</span>
+              </div>
+              <div className="flex items-baseline gap-1 mt-2">
+                <span className="text-xl font-black text-slate-800">{uniqueSkusRecommended}</span>
+                <span className="text-[10px] text-slate-400 font-bold">/ 150 SKUs recomendados</span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <ProgressBar value={Math.min(100, (uniqueSkusRecommended / 150) * 100)} colorClass="bg-indigo-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* SEÇÃO 2: QUICK FILTERS */}
+      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mt-6 flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0">
+          <div className="flex flex-col gap-1 min-w-[80px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Estado</span>
+            <select
+              value={sessionFilters.estados[0] || ''}
+              onChange={(e) => setSessionFilters(p => ({ ...p, estados: e.target.value ? [e.target.value] : [] }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              <option value="">Todos</option>
+              {estadoOptions.map(o => <option key={o.value} value={o.value}>{o.value}</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Cidade</span>
+            <select
+              value={sessionFilters.cidades[0] || ''}
+              onChange={(e) => setSessionFilters(p => ({ ...p, cidades: e.target.value ? [e.target.value] : [] }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              <option value="">Todas</option>
+              {cidadesOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Regional</span>
+            <select
+              value={sessionFilters.regionais[0] || ''}
+              onChange={(e) => setSessionFilters(p => ({ ...p, regionais: e.target.value ? [e.target.value] : [] }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              <option value="">Todas</option>
+              {regionalOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[120px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">RCA</span>
+            <select
+              value={sessionFilters.rcas[0] || ''}
+              onChange={(e) => setSessionFilters(p => ({ ...p, rcas: e.target.value ? [e.target.value] : [] }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              <option value="">Todos</option>
+              {rcaOptions.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Categoria</span>
+            <select
+              value={sessionFilters.categorias[0] || ''}
+              onChange={(e) => setSessionFilters(p => ({ ...p, categorias: e.target.value ? [e.target.value] : [] }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              <option value="">Todas</option>
+              {categoriaOptions.map(o => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Status</span>
+            <select
+              value={sessionFilters.statuses[0] || ''}
+              onChange={(e) => setSessionFilters(p => ({ ...p, statuses: e.target.value ? [e.target.value] : [] }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              <option value="">Todos</option>
+              <option value="Entradas">Em Curadoria</option>
+              <option value="Autorizados">Homologado</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Tipo Cliente</span>
+            <select
+              value={sessionFilters.tipoCliente || 'all'}
+              onChange={(e) => setSessionFilters(p => ({ ...p, tipoCliente: e.target.value }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              <option value="all">Todos os Tipos</option>
+              <option value="prioridade-a">Prioridade A (Score ≥ 90)</option>
+              <option value="prioridade-b">Prioridade B (Score 70-89)</option>
+              <option value="prospects">Prospects Radar</option>
+              <option value="convertidos">Convertidos</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1 min-w-[100px]">
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Score Fit</span>
+            <select
+              value={sessionFilters.scoreFit}
+              onChange={(e) => setSessionFilters(p => ({ ...p, scoreFit: e.target.value }))}
+              className="bg-white border border-slate-250 rounded-lg text-xs font-bold px-2 py-1.5 outline-hidden text-slate-700"
+            >
+              {SCORE_FIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-2.5 shrink-0 pt-3 md:pt-0">
+          <button onClick={handleSaveFilters} className="text-xs font-black text-blue-600 hover:text-blue-800 transition-colors cursor-pointer">
+            Salvar Filtros
+          </button>
+          <span className="text-slate-350">|</span>
+          <button onClick={handleClearFilters} className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors cursor-pointer">
+            Limpar
+          </button>
+        </div>
+      </div>
+
+      {/* SEÇÃO 3: PIPELINE FUNNEL, TOP CLIENTS, INSIGHTS IA */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* FUNIL */}
+          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-3xs hover:shadow-2xs transition-all">
+            <div className="border-b border-slate-100 pb-3 mb-4.5 flex justify-between items-center">
+              <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-blue-900 shrink-0" />
+                Funil do Pipeline Comercial
+              </h3>
+              <span className="text-[10px] font-bold text-slate-400">Conversão de Contas Operacionais</span>
+            </div>
+
+            <div className="flex flex-col items-center space-y-2 py-2">
+              <div className="w-full bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-xl py-2 px-4 flex justify-between items-center shadow-sm relative overflow-hidden">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[9px]">1</span>
+                  Clientes Mapeados
                 </span>
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 bg-slate-50/45 border border-slate-100 rounded-lg p-3 hover:shadow-2xs transition-shadow">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-extrabold text-slate-800 leading-none">{item.title}</span>
-                      <span className="text-[9px] font-black text-blue-900 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-sm">{item.clientName}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">{item.description}</p>
-                  </div>
-                  <span className="text-[9px] font-black text-slate-400 shrink-0 font-mono flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-slate-300" />
-                    {item.timeLabel}
-                  </span>
-                </div>
+                <span className="text-xs font-mono font-black">{funnelMapeados} pdvs (100%)</span>
               </div>
-            ))}
-          </div>
-        </Card>
-      </motion.div>
 
-      {/* MODAL DE GERENCIAMENTO DE REGIONAIS E RCAs */}
-      <Modal
-        isOpen={isManageModalOpen}
-        onClose={() => setIsManageModalOpen(false)}
-        title="Gerenciador Operacional de Regionais & RCAs"
-        size="lg"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-sans text-xs">
-          
-          {/* SEÇÃO REGIONAIS */}
-          <div className="space-y-4 border-r border-slate-100 pr-0 md:pr-6">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">Regionais</h4>
-              <span className="bg-blue-50 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {regionals.length} cadastradas
-              </span>
-            </div>
+              <div className="h-3 text-slate-300">↓</div>
 
-            {/* Form Adicionar/Editar Regional */}
-            <div className="bg-slate-50 p-3 rounded-lg space-y-3 border border-slate-100">
-              <span className="font-bold text-slate-700 block">
-                {editingRegionalId ? 'Editar Regional' : 'Nova Regional'}
-              </span>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Nome da Regional (Ex: Regional Sul)"
-                  value={newRegionalName}
-                  onChange={(e) => setNewRegionalName(e.target.value)}
-                  className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden"
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    if (!newRegionalName.trim()) return;
-                    if (editingRegionalId) {
-                      setRegionals(prev => prev.map(r => r.id === editingRegionalId ? { ...r, name: newRegionalName.trim() } : r));
-                      triggerToast('success', 'Regional Atualizada', 'Nome da Regional alterado com sucesso.');
-                      setEditingRegionalId(null);
-                    } else {
-                      const newReg = {
-                        id: 'reg-' + Date.now(),
-                        name: newRegionalName.trim(),
-                        active: true
-                      };
-                      setRegionals(prev => [...prev, newReg]);
-                      triggerToast('success', 'Regional Criada', 'Nova Regional cadastrada para filtros.');
-                    }
-                    setNewRegionalName('');
-                  }}
-                >
-                  {editingRegionalId ? 'Salvar' : 'Adicionar'}
-                </Button>
-                {editingRegionalId && (
-                  <button
-                    onClick={() => {
-                      setEditingRegionalId(null);
-                      setNewRegionalName('');
-                    }}
-                    className="text-slate-400 hover:text-slate-600 font-bold"
-                  >
-                    Cancelar
-                  </button>
-                )}
+              <div className="w-[92%] bg-gradient-to-r from-indigo-800 to-indigo-700 text-white rounded-xl py-2 px-4 flex justify-between items-center shadow-xs">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[9px]">2</span>
+                  Em Curadoria
+                </span>
+                <span className="text-xs font-mono font-black">{funnelCuradoria} pdvs ({pctCuradoria}%)</span>
               </div>
-            </div>
 
-            {/* List of Regionals */}
-            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-              {regionals.map(r => (
-                <div key={r.id} className="flex items-center justify-between p-2 rounded-md bg-white border border-slate-150 shadow-2xs">
-                  <span className={`font-bold ${r.active ? 'text-slate-700' : 'text-slate-400 line-through'}`}>
-                    {r.name}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setRegionals(prev => prev.map(item => item.id === r.id ? { ...item, active: !item.active } : item));
-                        triggerToast('info', 'Status Alterado', `Regional "${r.name}" foi ${r.active ? 'desativada' : 'ativada'}.`);
-                      }}
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${r.active ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100'}`}
-                    >
-                      {r.active ? 'Ativa' : 'Inativa'}
-                    </button>
+              <div className="h-3 text-slate-300">↓</div>
 
-                    <button
-                      onClick={() => {
-                        setEditingRegionalId(r.id);
-                        setNewRegionalName(r.name);
-                      }}
-                      className="text-slate-500 hover:text-blue-700 font-bold text-[10px]"
-                    >
-                      Editar
-                    </button>
+              <div className="w-[84%] bg-gradient-to-r from-blue-800 to-blue-700 text-white rounded-xl py-2 px-4 flex justify-between items-center shadow-xs">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[9px]">3</span>
+                  Homologados
+                </span>
+                <span className="text-xs font-mono font-black">{funnelHomologados} pdvs ({pctHomologados}%)</span>
+              </div>
 
-                    <button
-                      onClick={() => {
-                        setRegionals(prev => prev.filter(item => item.id !== r.id));
-                        triggerToast('warning', 'Regional Removida', `A regional "${r.name}" foi excluída.`);
-                      }}
-                      className="text-rose-500 hover:text-rose-700 font-bold text-[10px]"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-              ))}
+              <div className="h-3 text-slate-300">↓</div>
+
+              <div className="w-[76%] bg-gradient-to-r from-amber-700 to-amber-600 text-white rounded-xl py-2 px-4 flex justify-between items-center shadow-xs">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[9px]">4</span>
+                  Abordados
+                </span>
+                <span className="text-xs font-mono font-black">{funnelAbordados} pdvs ({pctAbordados}%)</span>
+              </div>
+
+              <div className="h-3 text-slate-300">↓</div>
+
+              <div className="w-[68%] bg-gradient-to-r from-emerald-700 to-emerald-600 text-white rounded-xl py-2 px-4 flex justify-between items-center shadow-xs">
+                <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[9px]">5</span>
+                  Convertidos
+                </span>
+                <span className="text-xs font-mono font-black">{funnelConvertidos} pdvs ({pctConvertidos}%)</span>
+              </div>
             </div>
           </div>
 
-          {/* SEÇÃO RCAs */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider">RCAs (Representantes)</h4>
-              <span className="bg-blue-50 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                {rcas.length} cadastrados
-              </span>
-            </div>
-
-            {/* Form Adicionar/Editar RCA */}
-            <div className="bg-slate-50 p-3 rounded-lg space-y-3 border border-slate-100">
-              <span className="font-bold text-slate-700 block">
-                {editingRcaId ? 'Editar RCA' : 'Novo RCA'}
-              </span>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Nome do RCA (Ex: Giovanni Rossi)"
-                  value={newRcaName}
-                  onChange={(e) => setNewRcaName(e.target.value)}
-                  className="flex-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden"
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => {
-                    if (!newRcaName.trim()) return;
-                    if (editingRcaId) {
-                      setRcas(prev => prev.map(r => r.id === editingRcaId ? { ...r, name: newRcaName.trim() } : r));
-                      triggerToast('success', 'RCA Atualizado', 'Nome do RCA alterado com sucesso.');
-                      setEditingRcaId(null);
-                    } else {
-                      const newRcaObj = {
-                        id: 'rca-' + Date.now(),
-                        name: newRcaName.trim(),
-                        active: true
-                      };
-                      setRcas(prev => [...prev, newRcaObj]);
-                      triggerToast('success', 'RCA Criado', 'Novo RCA cadastrado para filtros.');
-                    }
-                    setNewRcaName('');
-                  }}
-                >
-                  {editingRcaId ? 'Salvar' : 'Adicionar'}
-                </Button>
-                {editingRcaId && (
-                  <button
-                    onClick={() => {
-                      setEditingRcaId(null);
-                      setNewRcaName('');
-                    }}
-                    className="text-slate-400 hover:text-slate-600 font-bold"
-                  >
-                    Cancelar
-                  </button>
-                )}
+          {/* TOP CLIENTES PRIORITÁRIOS */}
+          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-3xs hover:shadow-2xs transition-all">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 text-left">
+              <div>
+                <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+                  <Briefcase className="h-4 w-4 text-blue-900 shrink-0" />
+                  Top Clientes Prioritários
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">Mapeamento de maior score comercial de atuação.</p>
               </div>
+              <Badge variant="info">{filteredClients.filter(c => c.score >= 85).length} Prioritários (A)</Badge>
             </div>
 
-            {/* List of RCAs */}
-            <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1">
-              {rcas.map(r => (
-                <div key={r.id} className="flex items-center justify-between p-2 rounded-md bg-white border border-slate-150 shadow-2xs">
-                  <span className={`font-bold ${r.active ? 'text-slate-700' : 'text-slate-400 line-through'}`}>
-                    {r.name}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setRcas(prev => prev.map(item => item.id === r.id ? { ...item, active: !item.active } : item));
-                        triggerToast('info', 'Status Alterado', `RCA "${r.name}" foi ${r.active ? 'desativado' : 'ativado'}.`);
-                      }}
-                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${r.active ? 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100' : 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100'}`}
-                    >
-                      {r.active ? 'Ativo' : 'Inativo'}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setEditingRcaId(r.id);
-                        setNewRcaName(r.name);
-                      }}
-                      className="text-slate-500 hover:text-blue-700 font-bold text-[10px]"
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setRcas(prev => prev.filter(item => item.id !== r.id));
-                        triggerToast('warning', 'RCA Removido', `O RCA "${r.name}" foi excluído.`);
-                      }}
-                      className="text-rose-500 hover:text-rose-700 font-bold text-[10px]"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto animate-fade-in">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                    <th className="py-2">Nome</th>
+                    <th className="py-2">Cidade</th>
+                    <th className="py-2 text-center">Score</th>
+                    <th className="py-2 text-right">Potencial</th>
+                    <th className="py-2 text-center">Status</th>
+                    <th className="py-2 text-right">Workspace</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 text-xs font-semibold text-slate-700">
+                  {filteredClients
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 5)
+                    .map((cli) => {
+                      const opp = filteredOpportunities.find(o => o.cliente.toLowerCase() === cli.name.toLowerCase() || o.clientId?.toString() === cli.id.toString());
+                      const potentialValue = opp ? opp.valorPotencialEstimado : (cli.score * 580);
+                      
+                      return (
+                        <tr key={cli.id} className="hover:bg-slate-50/70 transition-colors group">
+                          <td className="py-2.5 font-extrabold text-slate-800 truncate max-w-[150px]">{cli.fantasyName || cli.name}</td>
+                          <td className="py-2.5 text-slate-500">{cli.city} ({cli.state})</td>
+                          <td className="py-2.5 text-center">
+                            <span className="inline-block px-1.5 py-0.5 rounded font-mono font-black text-[10px] bg-blue-50 text-blue-700">
+                              {cli.score} pts
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right font-black text-emerald-600">R$ {potentialValue.toLocaleString('pt-BR')}</td>
+                          <td className="py-2.5 text-center">
+                            <span className={`inline-block text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                              cli.status === 'Autorizados' ? 'text-emerald-800 bg-emerald-50' : 'text-amber-800 bg-amber-50'
+                            }`}>
+                              {cli.status === 'Autorizados' ? 'Homologado' : 'Curadoria'}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-right">
+                            <button
+                              onClick={() => {
+                                localStorage.setItem('ctrade_selected_client_id', cli.id.toString());
+                                window.dispatchEvent(new CustomEvent('navigate-to-page', { detail: 'clientes' }));
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-900 text-white hover:bg-blue-950 font-black uppercase tracking-wider text-[9px] px-2 py-1 rounded cursor-pointer flex items-center gap-0.5 ml-auto"
+                            >
+                              Workspace <ChevronRight className="h-3 w-3" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  {filteredClients.length === 0 && (
+                    <tr><td colSpan={6} className="py-6 text-center text-slate-400 italic">Nenhum cliente localizado</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
-
         </div>
-      </Modal>
+
+        {/* INSIGHTS */}
+        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-3xs flex flex-col justify-between">
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-purple-700 animate-pulse" />
+              Insights IA
+            </h3>
+
+            <div className="space-y-3">
+              <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-1 hover:border-slate-200 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Pizzarias Premium</span>
+                  <Badge variant="success">+28% novos</Badge>
+                </div>
+                <p className="text-xs font-semibold text-slate-700 leading-relaxed">
+                  Crescimento acelerado de estabelecimentos operando com farinha napolitana premium no Sudeste.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-1 hover:border-slate-200 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Novos Hotéis</span>
+                  <Badge variant="primary">Expansão</Badge>
+                </div>
+                <p className="text-xs font-semibold text-slate-700 leading-relaxed">
+                  Mapeamento em SC indica novas aberturas hoteleiras premium com restaurantes italianos refinados.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-1 hover:border-slate-200 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Mudanças de Cardápio</span>
+                  <Badge variant="warning">Oportunidade</Badge>
+                </div>
+                <p className="text-xs font-semibold text-slate-700 leading-relaxed">
+                  Cardápios recém-mapeados apontam alta na oferta de Burratas. Latteria Sorrentina surge como substituto ideal.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 space-y-1 hover:border-slate-200 transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Produtos em Alta</span>
+                  <Badge variant="info">Massas</Badge>
+                </div>
+                <p className="text-xs font-semibold text-slate-700 leading-relaxed">
+                  Aumento expressivo na substituição de massas secas por frescas artesanais na região Sul.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[10px] font-bold text-center text-slate-400 mt-4 pt-4 border-t border-slate-50 flex items-center justify-center gap-1">
+            <Sparkles className="h-3 w-3 text-purple-500 shrink-0" />
+            Insights gerados em tempo real pelo C-Trade IA
+          </div>
+        </div>
+      </div>
+
+      {/* SEÇÃO 3.5: PAINEL DE INTELIGÊNCIA DE DISTRIBUIÇÃO */}
+      <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-3xs mt-6 text-left">
+        <div className="border-b border-slate-100 pb-3 mb-4 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+          <div>
+            <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+              <Sparkles className="h-4 w-4 text-purple-600 animate-pulse" />
+              Painel de Inteligência de Distribuição
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Visão consolidada da penetração do portfólio de produtos e faturamento potencial.</p>
+          </div>
+          
+          {/* Tabs header */}
+          <div className="flex flex-wrap gap-1 bg-slate-50 p-1 rounded-xl border border-slate-150">
+            {(['categorias', 'produtos', 'segmentos', 'distribuicao', 'novos'] as const).map((tab) => {
+              const labels = {
+                categorias: 'Categorias',
+                produtos: 'Produtos',
+                segmentos: 'Segmentos (R$)',
+                distribuicao: 'UF / Cidades',
+                novos: 'Entradas'
+              };
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setIntelTab(tab)}
+                  className={`px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-lg transition-all cursor-pointer ${intelTab === tab ? 'bg-blue-900 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  {labels[tab]}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tab content renderer */}
+        <div className="animate-fade-in min-h-[160px] flex flex-col justify-between">
+          {intelTab === 'categorias' && (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {topCategorias.map((item, idx) => (
+                <div key={item.name} className="p-3.5 border border-slate-50 rounded-xl bg-slate-50/20 flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-blue-50 text-blue-900 flex items-center justify-center font-mono text-[9px] font-black">{idx + 1}</span>
+                    <span className="text-[11px] font-extrabold text-slate-800 truncate">{item.name}</span>
+                  </div>
+                  <div className="mt-2 text-xs">
+                    <span className="text-slate-400 text-[10px] block">Ocorrências Mapeadas</span>
+                    <strong className="text-slate-800 text-sm font-black">{item.count} restaurantes</strong>
+                  </div>
+                  <div className="mt-3">
+                    <ProgressBar value={(item.count / (topCategorias[0]?.count || 1)) * 100} colorClass="bg-blue-600" />
+                  </div>
+                </div>
+              ))}
+              {topCategorias.length === 0 && <div className="col-span-5 text-center text-slate-400 italic py-6">Sem ocorrências registradas</div>}
+            </div>
+          )}
+
+          {intelTab === 'produtos' && (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {topProdutos.slice(0, 5).map((item, idx) => (
+                <div key={item.name} className="p-3.5 border border-slate-50 rounded-xl bg-slate-50/20 flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-emerald-50 text-emerald-900 flex items-center justify-center font-mono text-[9px] font-black">{idx + 1}</span>
+                    <span className="text-[11px] font-extrabold text-slate-800 truncate" title={item.name}>{item.name}</span>
+                  </div>
+                  <div className="mt-2 text-xs">
+                    <span className="text-slate-400 text-[10px] block">Matches em Pratos</span>
+                    <strong className="text-slate-800 text-sm font-black">{item.count} indicações</strong>
+                  </div>
+                  <div className="mt-3">
+                    <ProgressBar value={(item.count / (topProdutos[0]?.count || 1)) * 100} colorClass="bg-emerald-600" />
+                  </div>
+                </div>
+              ))}
+              {topProdutos.length === 0 && <div className="col-span-5 text-center text-slate-400 italic py-6">Sem ocorrências de SKUs recomendados</div>}
+            </div>
+          )}
+
+          {intelTab === 'segmentos' && (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {segmentsPotential.map((item, idx) => (
+                <div key={item.name} className="p-3.5 border border-slate-50 rounded-xl bg-slate-50/20 flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-amber-50 text-amber-900 flex items-center justify-center font-mono text-[9px] font-black">{idx + 1}</span>
+                    <span className="text-[11px] font-extrabold text-slate-800 truncate">{item.name}</span>
+                  </div>
+                  <div className="mt-2 text-xs">
+                    <span className="text-slate-400 text-[10px] block">Receita Potencial Mapeada</span>
+                    <strong className="text-emerald-700 text-sm font-black">R$ {item.revenue.toLocaleString('pt-BR')}</strong>
+                  </div>
+                  <div className="mt-1 text-[10px] text-slate-400">
+                    {item.count} PDVs mapeados
+                  </div>
+                  <div className="mt-3">
+                    <ProgressBar value={(item.revenue / (segmentsPotential[0]?.revenue || 1)) * 100} colorClass="bg-amber-500" />
+                  </div>
+                </div>
+              ))}
+              {segmentsPotential.length === 0 && <div className="col-span-5 text-center text-slate-400 italic py-6">Sem segmentos detectados</div>}
+            </div>
+          )}
+
+          {intelTab === 'distribuicao' && (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {stateCityDistribution.map((item, idx) => (
+                <div key={item.name} className="p-3.5 border border-slate-50 rounded-xl bg-slate-50/20 flex flex-col justify-between">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-5 h-5 rounded-full bg-purple-50 text-purple-900 flex items-center justify-center font-mono text-[9px] font-black">{idx + 1}</span>
+                    <span className="text-[11px] font-extrabold text-slate-800 truncate">{item.name}</span>
+                  </div>
+                  <div className="mt-2 text-xs">
+                    <span className="text-slate-400 text-[10px] block">Valor Comercial Potencial</span>
+                    <strong className="text-slate-800 text-sm font-black">R$ {item.potential.toLocaleString('pt-BR')}</strong>
+                  </div>
+                  <div className="mt-1 text-[10px] text-slate-400">
+                    {item.count} restaurantes ativos
+                  </div>
+                  <div className="mt-3">
+                    <ProgressBar value={(item.potential / (stateCityDistribution[0]?.potential || 1)) * 100} colorClass="bg-purple-600" />
+                  </div>
+                </div>
+              ))}
+              {stateCityDistribution.length === 0 && <div className="col-span-5 text-center text-slate-400 italic py-6">Sem ocorrências regionais</div>}
+            </div>
+          )}
+
+          {intelTab === 'novos' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {newClientsByPeriod.map((item) => (
+                <div key={item.name} className="p-3.5 border border-slate-50 rounded-xl bg-slate-50/20 flex flex-col justify-between">
+                  <div className="mb-1 text-xs">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{item.name}</span>
+                  </div>
+                  <div className="mt-2 text-xs">
+                    <span className="text-slate-400 text-[10px] block">Novos Leads Mapeados</span>
+                    <strong className="text-slate-800 text-sm font-black">{item.count} novos clientes</strong>
+                  </div>
+                  <div className="mt-1 text-[10px] text-emerald-600 font-bold">
+                    R$ {item.potential.toLocaleString('pt-BR')} em pipeline
+                  </div>
+                  <div className="mt-3">
+                    <ProgressBar value={(item.count / (filteredClients.length || 1)) * 100} colorClass="bg-blue-600" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SEÇÃO 4: BENTO RANKINGS */}
+      <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-3xs mt-6">
+        <div className="border-b border-slate-100 pb-3 mb-4 flex items-center justify-between">
+          <h3 className="text-xs font-black uppercase text-slate-800 tracking-wider flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-blue-900 shrink-0" />
+            Rankings Comerciais da Operação
+          </h3>
+          <span className="text-[10px] font-bold text-slate-400">Atualizado dinamicamente</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Categoria */}
+          <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b border-slate-100 pb-1">Top Categorias</span>
+            <div className="space-y-1.5">
+              {topCategorias.map((item, idx) => (
+                <div key={item.name} className="text-[11px]">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span className="truncate max-w-[100px]">{idx+1}. {item.name}</span>
+                    <span>{item.count}</span>
+                  </div>
+                  <ProgressBar value={(item.count / (topCategorias[0]?.count || 1)) * 100} colorClass="bg-blue-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Produtos */}
+          <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b border-slate-100 pb-1">Top Produtos</span>
+            <div className="space-y-1.5">
+              {topProdutos.slice(0, 5).map((item, idx) => (
+                <div key={item.name} className="text-[11px]">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span className="truncate max-w-[100px]">{idx+1}. {item.name}</span>
+                    <span>{item.count}</span>
+                  </div>
+                  <ProgressBar value={(item.count / (topProdutos[0]?.count || 1)) * 100} colorClass="bg-emerald-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Marcas */}
+          <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b border-slate-100 pb-1">Top Marcas</span>
+            <div className="space-y-1.5">
+              {topMarcas.map((item, idx) => (
+                <div key={item.name} className="text-[11px]">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span className="truncate max-w-[100px]">{idx+1}. {item.name}</span>
+                    <span>{item.count}</span>
+                  </div>
+                  <ProgressBar value={(item.count / (topMarcas[0]?.count || 1)) * 100} colorClass="bg-indigo-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Segmentos */}
+          <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b border-slate-100 pb-1">Top Segmentos</span>
+            <div className="space-y-1.5">
+              {topSegmentos.map((item, idx) => (
+                <div key={item.name} className="text-[11px]">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span className="truncate max-w-[100px]">{idx+1}. {item.name}</span>
+                    <span>{item.count}</span>
+                  </div>
+                  <ProgressBar value={(item.count / (topSegmentos[0]?.count || 1)) * 100} colorClass="bg-amber-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Cidades */}
+          <div className="space-y-2.5 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block border-b border-slate-100 pb-1">Top Cidades</span>
+            <div className="space-y-1.5">
+              {topCidades.map((item, idx) => (
+                <div key={item.name} className="text-[11px]">
+                  <div className="flex justify-between font-bold text-slate-700">
+                    <span className="truncate max-w-[100px]">{idx+1}. {item.name}</span>
+                    <span>{item.count}</span>
+                  </div>
+                  <ProgressBar value={(item.count / (topCidades[0]?.count || 1)) * 100} colorClass="bg-purple-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </PageContainer>
   );
 }

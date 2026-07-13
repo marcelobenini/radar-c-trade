@@ -248,7 +248,25 @@ export default function Relatorios() {
       const saved = sessionStorage.getItem('ctrade_session_filters_base');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          const parsed = JSON.parse(saved);
+          return {
+            estados: parsed.estados || [],
+            cidades: parsed.cidades || (parsed.cidade ? [parsed.cidade] : []),
+            regionais: parsed.regionais || [],
+            rcas: parsed.rcas || [],
+            categorias: parsed.categorias || [],
+            produtos: parsed.produtos || [],
+            marcas: parsed.marcas || [],
+            segmentos: parsed.segmentos || [],
+            statuses: parsed.statuses || [],
+            scoreComercial: parsed.scoreComercial || 'all',
+            scoreFit: parsed.scoreFit || 'all',
+            cidade: parsed.cidade || '',
+            cliente: parsed.cliente || '',
+            periodoOption: parsed.periodoOption || '30',
+            dataInicio: parsed.dataInicio || '',
+            dataFim: parsed.dataFim || ''
+          };
         } catch (e) {
           console.error(e);
         }

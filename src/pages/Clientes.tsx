@@ -169,6 +169,7 @@ export interface Client {
   // --- MODELO DE CONTA (ACCOUNT MODEL) ---
   id_radar?: string; // ID Radar (Auto-generated, immutable)
   id_erp?: string; // ID ERP (Proveniente do ERP, mutable)
+  id_ctrade?: string; // ID C-Trade (Alias for id_erp in downstream integrations)
   statusConta?: 'Prospect Radar' | 'Cliente Convertido' | 'Cliente Base'; // Status da Conta (Ciclo de Vida)
 }
 
@@ -312,6 +313,7 @@ export default function Clientes() {
       historicoCompleto: defaultHistory,
       id_radar: rc.id_radar,
       id_erp: rc.id_erp,
+      id_ctrade: rc.id_erp,
       statusConta: rc.statusConta || deriveStatusConta(rc.id_radar, rc.id_erp)
     };
   });
@@ -1060,6 +1062,7 @@ export default function Clientes() {
           score: editScore,
           id_radar: editIdRadar || undefined,
           id_erp: editIdErp || undefined,
+          id_ctrade: editIdErp || undefined,
           statusConta: finalStatusConta,
           dateUpdated: todayStr,
           historicoCompleto: updatedHistory
@@ -1098,6 +1101,7 @@ export default function Clientes() {
         return {
           ...c,
           id_erp: insertedIdErp.trim(),
+          id_ctrade: insertedIdErp.trim(),
           statusConta: 'Cliente Convertido' as const,
           dateUpdated: todayStr,
           historicoCompleto: updatedHistory
@@ -1133,6 +1137,7 @@ export default function Clientes() {
             return {
               ...c,
               id_erp: 'ERP-4455',
+              id_ctrade: 'ERP-4455',
               statusConta: 'Cliente Convertido' as const,
               dateUpdated: todayStr,
               historicoCompleto: updatedHistory
@@ -1174,6 +1179,7 @@ export default function Clientes() {
           dateCreated: todayStr,
           dateUpdated: todayStr,
           id_erp: 'ERP-5566',
+          id_ctrade: 'ERP-5566',
           statusConta: 'Cliente Base',
           responsibleCommercial: 'RCA Marcelo Baquero',
           historicoCompleto: [
